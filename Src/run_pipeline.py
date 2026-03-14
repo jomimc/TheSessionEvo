@@ -4,11 +4,9 @@ import shutil
 from subprocess import Popen, PIPE
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
-import seaborn as sns
 from sklearn.metrics import roc_curve, roc_auc_score
 import statsmodels.api as sm
 from tqdm import tqdm
@@ -16,12 +14,9 @@ from tqdm import tqdm
 from thesession.config import *
 from thesession.io import tune_loader as load_tunes
 from thesession.analysis import key_mode as KMF
-from thesession.alignment import onset as OA
-from thesession.analysis import optimization as OP
 from thesession.alignment import parts as PA
 from thesession.structure import part_separation as PS
 from thesession.io import savage_loader as savage
-from thesession.alignment import pairwise as seq_align
 from thesession.io import seq_io
 from thesession.analysis import substitution as SM
 from thesession import utils
@@ -42,7 +37,7 @@ def run_mmseqs(df, name, go=4, ge=3, ref='ref', save_fasta=True):
 
     # Save to fasta
     path_base = PATH_MMSEQS.joinpath(f'{name}')
-    path_base.parent.mkdir(parents=True, exist_ok=True)
+    path_base.mkdir(parents=True, exist_ok=True)
     fasta_name = f'all_seq_{name}.fasta'
     if save_fasta:
         path_fasta = path_base.joinpath(fasta_name)
@@ -67,20 +62,22 @@ def run_mmseqs(df, name, go=4, ge=3, ref='ref', save_fasta=True):
     pipe_output = Popen(args, stdout=PIPE, stderr=PIPE, cwd=str(path_base))
     stdout, stderr = pipe_output.communicate()
 
-    if len(stderr) == 0:
+    if pipe_output.returncode == 0:
         print("MMseqs has completed successfully!")
         shutil.rmtree(path_base.joinpath("tmp"))
     else:
         print("An error has occurred while running MMseqs!")
-        print(stderr)
+        print(stderr.decode())
 
 
 ### Load mmseqs results (or run mmseqs if not done yet)
 def load_mmseqs(df, dataset, ref='setting_id', redo=False, annotate=True, save_fasta=True):
     path = PATH_MMSEQS.joinpath(f"{dataset}/result.m8")
     if not path.exists() or redo:
-        # Create folder + files and run mmseqs
+        print(f"Running mmseqs for '{dataset}'...")
         run_mmseqs(df, dataset, ref=ref, save_fasta=save_fasta)
+    else:
+        print(f"Loading cached mmseqs results for '{dataset}'")
     return seq_io.load_mmseqs_pairwise(df, dataset, annotate)
 
 
@@ -120,16 +117,18 @@ def data_for_fig1(redo=False):
     dataset = "thesession_tunes"
     fig_data = get_roc_and_auc(load_mmseqs(df, dataset, redo=redo), dataset)
     fig_data = get_total_positives(df, dataset, 'tune_id', fig_data)
+    print(f"  AUC: {fig_data[f'{dataset}_auc']:.3f}")
 
-    ### Meertens 
+    ### Meertens
     print("Running on Meertens data")
     df = load_tunes.load_meertens_data(redo=redo)[0]
 
     dataset = "meertens"
     fig_data = get_roc_and_auc(load_mmseqs(df, dataset, "ref", redo=redo), dataset, fig_data)
     fig_data = get_total_positives(df, dataset, 'song_id', fig_data)
+    print(f"  AUC: {fig_data[f'{dataset}_auc']:.3f}")
 
-    ### Savage et al. 
+    ### Savage et al.
     print("Running on data from Savage et al.")
     df = savage.load_savage_df(full=True, redo=redo)
     df = df.loc[df.Language=='English']
@@ -137,13 +136,17 @@ def data_for_fig1(redo=False):
     dataset = "savage_english"
     fig_data = get_roc_and_auc(load_mmseqs(df, dataset, "ref", redo=redo), dataset, fig_data)
     fig_data = get_total_positives(df, dataset, 'chapter', fig_data)
+    print(f"  AUC: {fig_data[f'{dataset}_auc']:.3f}")
 
     path = PATH_FIG_DATA.joinpath("fig1_roc_curve_data.pkl")
     pickle.dump(fig_data, open(path, 'wb'))
+    print(f"Saved figure 1 data to {path}")
 
 
 ### Get overall tpr/fpr, accounting for screening stage
-def get_total_positives(df, dataset, x='tune_id', fig_data={}):
+def get_total_positives(df, dataset, x='tune_id', fig_data=None):
+    if fig_data is None:
+        fig_data = {}
     total = len(df)**2
     positives = np.sum([n * (n - 1) / 2 for n in df[x].value_counts().values])
     negatives = total - positives
@@ -154,7 +157,9 @@ def get_total_positives(df, dataset, x='tune_id', fig_data={}):
 
 
 # Get roc and roc-auc
-def get_roc_and_auc(res, dataset, fig_data={}):
+def get_roc_and_auc(res, dataset, fig_data=None):
+    if fig_data is None:
+        fig_data = {}
     fpr, tpr, _ = roc_curve(res.in_fam, res.fident)
     auc = roc_auc_score(res.in_fam, res.fident)
 
@@ -188,30 +193,34 @@ def run_main_alignments(redo=False):
     # Load a cleaned dataset
     # (code takes about 2 hours to run)
     print(f"Loading data (redo is {'on' if redo else 'off'})")
+    t0 = time.time()
     df, tunes = load_tunes.load_thesession_data(redo=redo)
+    print(f"  Done in {time.time()-t0:.1f}s")
 
     # Extract parts
     print(f"Splitting tunes into parts")
+    t0 = time.time()
     df_parts, parts_data = PS.get_all_parts_thesession(df, tunes, redo=redo)
+    print(f"  Done in {time.time()-t0:.1f}s")
 
     # Write parts to fasta
     print(f"Writing to fasta")
     seq_io.write_parts_thesession(parts_data)
 
     # (Run and ) load mmseqs2 results
-    print(f"Running / loading mmseqs")
-
     ### CHEKC THIS!!! PROBABLY DOES NOT WORK!!!
-
+    t0 = time.time()
     res = load_mmseqs(parts_data, "thesession_parts", redo=redo, annotate=False, save_fasta=False)
-    print(f"mmseqs gave {len(res)} tune pairs")
+    print(f"  mmseqs gave {len(res)} tune pairs ({time.time()-t0:.1f}s)")
 
     res = PA.prune_identical_parts(res, parts_data)
     print(f"Pruning identical parts leaves {len(res)} tune pairs")
 
     # Align parts using new algorithm
+    print("Annotating alignments...")
+    t0 = time.time()
     res, res0, mismatches = PA.annotate_res(df, res, parts_data, redo=redo)
-    print(f"Final set: {len(res0)} tune pairs")
+    print(f"  Final set: {len(res0)} tune pairs ({time.time()-t0:.1f}s)")
 
     return df, tunes, df_parts, parts_data, res, res0, mismatches
 
@@ -220,9 +229,11 @@ def run_main_alignments(redo=False):
 # Run analyses for Fig 2:
 #    Note prevalence, mutability, key finding, IDyOM
 def data_for_fig2(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False):
-
+    print("Computing substitution matrices...")
     _ = note_prevalence_mutability(res0, mismatches, tunes, redo=redo)
+    print("Computing Savage substitution matrix...")
     _ = note_prevalence_mutability_savage(redo=redo)
+    print("Computing key-finding accuracy...")
     _ = note_stability_key_finding(df, tunes, res0, parts_data, 0.85, redo=redo)
 
 
@@ -279,9 +290,9 @@ def note_prevalence_mutability(res0, mismatches, tunes, alpha=0.5, redo=False):
     for dance in dance_list:
         path_mat = PATH_FIG_DATA.joinpath(f"submat-{dance}.npy")
         k = f"{dance}"
-        print(f"{np.sum(idx)} pairs used for {k}")
         idx = np.array((res0.target_dance==dance)&(res0.query_dance==dance), bool)
         mat_dict[k] = get_submat_by_pid(res0.loc[idx], mismatches.loc[idx], pid_list, path_mat, alpha, redo=redo)
+        print(f"{np.sum(idx)} pairs used for {k}")
 
     # submat: mode and dance
     idx_list = utils.get_mode_indices(res0, mismatches, 'exact_pent')
@@ -300,8 +311,10 @@ def note_prevalence_mutability(res0, mismatches, tunes, alpha=0.5, redo=False):
 def note_prevalence_mutability_savage(redo=False):
     path = PATH_FIG_DATA.joinpath(f"submat-savage_english.npy")
     if path.exists() and not redo:
+        print("  Loading cached Savage substitution matrix")
         return np.load(path)
     else:
+        print("  Computing Savage substitution matrix...")
         df = savage.load_savage_df(full=True, redo=False)
         df = df.loc[df.Language=='English']
         obs, letters, mat = savage.get_submat(df.loc[df.Language=='English'])
@@ -339,7 +352,7 @@ def note_stability_key_finding(df, tunes, res0, parts_data, pid=0.85, redo=False
         # Evaluate key finding
         meter_list = [meter_key[t] for (t, p) in part_set]
         correct_key = []
-        for (t, p), m in tqdm(zip(part_set, meter_list)):
+        for (t, p), m in tqdm(zip(part_set, meter_list), total=len(part_set)):
             correct_key.append(KMF.predict_key_family(res0, parts_data, mode_profiles, t, p, m, factor=4, pid=0.5, nran=10))
         correct_key = np.array(correct_key)
         np.save(path, correct_key)
@@ -353,8 +366,10 @@ def note_stability_key_finding(df, tunes, res0, parts_data, pid=0.85, redo=False
     # Run analyses for Fig 3:
     #    Substitution rates + log odds, sub distance (separate by mode, dance, mode and dance, all PID)
 def data_for_fig3(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False, mode_alg='exact_pent'):
+    print("Computing substitution matrices...")
     _ = note_prevalence_mutability(res0, mismatches, tunes, redo=redo)
-    _ = mint_dist(tunes)
+    print("Computing melodic interval distribution...")
+    _ = mint_dist(tunes, redo=redo)
 
     path = PATH_FIG_DATA.joinpath(f"sub_dist_all.npy")
     _ = note_sub_dist(res0, mismatches, parts_data, path, alpha=0.5, redo=redo)
@@ -371,8 +386,10 @@ def data_for_fig3(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=F
 def mint_dist(tunes, redo=False):
     path = PATH_FIG_DATA.joinpath(f"mint_dist_tunes.npy")
     if path.exists() and not redo:
+        print("  Loading cached melodic interval distribution")
         return np.load(path)
     else:
+        print("  Computing melodic interval distribution...")
         mint = PA.get_mint_dist(tunes)
         np.save(path, mint)
         return mint
@@ -384,8 +401,9 @@ def get_base_sub_dist_rate(res, mismatches, parts, alpha=0.5):
     M = np.arange(1, 14)
     tot = np.zeros(M.size, float)
     parts_dict = Counter(res[['query', 'target']].values.ravel())
-    weights = utils.inverse_frequency_weights(res, alpha)
-    for w, (p, c) in zip(weights, parts_dict.items()):
+    # As far as I can see, the weights do not need to be applied here! ***CHECK
+#   weights = utils.inverse_frequency_weights(res, alpha)
+    for p, c in parts_dict.items():
         tmidi = parts[p][0][1].astype(int)
         # Get the difference of all notes with all notes, to get
         # all possible melodic intervals
@@ -393,7 +411,7 @@ def get_base_sub_dist_rate(res, mismatches, parts, alpha=0.5):
         # Should this not also be normalized by melody length???
         for k, v in count.items():
             if k in M:
-                tot[k-1] += v * c * w 
+                tot[k-1] += v * c# * w 
     return tot
 
 
@@ -405,7 +423,7 @@ def note_sub_dist(res, mismatches, parts, path, alpha=0.5, redo=False):
         pid_list = np.arange(0.5, 1, 0.05)
         X = np.arange(1, 14)
         out = []
-        for pid in pid_list:
+        for pid in tqdm(pid_list, desc="  pid thresholds"):
             idx = np.array((res.frac_eq >= pid), bool)
 
             # Calculate the absolute counts of substitution distances
@@ -497,9 +515,13 @@ def get_sub_dist_savage(df, redo=False):
     #    Within-measure / across-measure rates, hierarchy and prevalence, (separate by mode, dance, mode and dance, all PID)
     #    covariance and repetition (separate by mode, dance, mode and dance, all and most common 100 tunes)
 def data_for_fig4(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False):
-    _ = bar_rate(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=False)
-    _ = bar_pos_rate(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=False)
+    print("Computing bar substitution rates...")
+    _ = bar_rate(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=redo)
+    print("Computing bar position substitution rates...")
+    _ = bar_pos_rate(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=redo)
+    print("Computing onset histograms...")
     _ = onset_histograms(res0, parts_data, redo=redo)
+    print("Computing bar position rate correlations...")
     _ = bar_pos_rate_corr(redo=redo)
 
 
@@ -509,7 +531,6 @@ def data_for_fig4(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=F
 def bar_rate(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=False):
     pid_list = np.arange(0.5, 1, 0.05)
     dance_list = ['reel', 'jig', 'polka', 'hornpipe']
-    X = np.arange(8)
     rate_dict = {}
 
     # Only look at dances that are known to have the 8-bar structure
@@ -534,7 +555,7 @@ def bar_rate(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=False):
     for dance in dance_list:
         idx = np.array((res0.target_dance==dance)&(res0.query_dance==dance), bool)
         path = PATH_FIG_DATA.joinpath(f"bar_rate-{dance}.npy")
-        rate_dict[meter] = get_bar_rate(res0.loc[idx], mismatches.loc[idx], pid_list, path, alpha=alpha, redo=redo)
+        rate_dict[dance] = get_bar_rate(res0.loc[idx], mismatches.loc[idx], pid_list, path, alpha=alpha, redo=redo)
         print(f"{np.sum(idx)} pairs used for {dance}")
 
     # bar rate: mode
@@ -556,9 +577,10 @@ def get_bar_rate(res, mismatches, pid_list, path, alpha=0.5, redo=False):
     else:
         ci = [0.025, 0.975]
         rate_stats = []
-        for pid in pid_list:
-            weights = utils.inverse_frequency_weights(res, alpha)
-            sub_rate_all = get_bar_subrate(mismatches, max_bar=8)
+        for pid in tqdm(pid_list, desc="  pid thresholds"):
+            idx = np.array(res.fident > pid, bool)
+            weights = utils.inverse_frequency_weights(res.loc[idx], alpha)
+            sub_rate_all = get_bar_subrate(mismatches.loc[idx], max_bar=8)
             Y, Ysample = get_bar_subrate_stats(sub_rate_all, weights)
             Ys = np.std(Ysample, axis=0)
             # Save the mean, standard deviation, and the 95% CI
@@ -604,7 +626,7 @@ def bar_pos_rate(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=False)
         sd = SUBDIV_DANCE[dance]
         idx = np.array((res0.target_dance==dance)&(res0.query_dance==dance), bool)
         path = PATH_FIG_DATA.joinpath(f"bar_pos_rate-{dance}.npy")
-        rate_dict[meter] = get_bar_pos_rate(res0.loc[idx], mismatches.loc[idx], sd, pid_list, path, alpha=alpha, redo=redo)
+        rate_dict[dance] = get_bar_pos_rate(res0.loc[idx], mismatches.loc[idx], sd, pid_list, path, alpha=alpha, redo=redo)
         print(f"{np.sum(idx)} pairs used for {dance}")
 
     return rate_dict
@@ -618,7 +640,7 @@ def get_bar_pos_rate(res, mismatches, subdivision, pid_list, path, alpha=0.5, re
     else:
         ci = [0.025, 0.975]
         rate_stats = []
-        for pid in pid_list:
+        for pid in tqdm(pid_list, desc="  pid thresholds"):
             idx = np.array(res.fident > pid, bool)
             weights = utils.inverse_frequency_weights(res.loc[idx], alpha)
             # Calculate substitution rate per bar for each tune
@@ -739,8 +761,9 @@ def load_hierarchy_stability_df(ipid=7):
     # Run analyses for Fig 5:
     #    covariance and repetition (separate by mode, dance, mode and dance, all and most common 100 tunes)
     #   don't separate by pid. use all available data to get a strong signal
-def data_for_fig5(res0, mismatches, redo=False):
-    part_covariance(res0, mismatches, mode_alg='exact_pent', alpha=0.5, redo=False)
+def data_for_fig5(res0, parts_data, redo=False):
+    print("Computing covariance matrices...")
+    part_covariance(res0, parts_data, alpha=0.5, redo=redo)
 
 
 ### Get the covariance matrices for sets of tunes grouped by meter,
@@ -818,34 +841,32 @@ def part_covariance_meter(res, parts_data, meter, path, factor0=2, nbars=8, alph
             eq.append(tc1 == tc2)
             idx.append(j)
 
-        return np.array(eq).T, np.array(changes), weights[idx]
         cov = np.cov(np.array(eq).T, aweights=weights[idx])
         rep = np.average(changes, weights=weights[idx], axis=0)
         np.save(path, [cov, rep])
-
         return cov, rep
 
 
 ### Code for recreating the analyses in the paper.
 ### Creates and saves data for figures.
 def main(redo=False):
-    # Run alignments for identifying tunes and analyse results
+    print("=== Fig 1: Identifying similar tunes ===")
     data_for_fig1(redo=redo)
 
-    # Run alignments for analysing evolutionary patterns
+    print("\n=== Running main alignments ===")
     df, tunes, df_parts, parts_data, res, res0, mismatches = run_main_alignments(redo=redo)
 
-    # Run analysis for Figure 2
+    print("\n=== Fig 2: Note prevalence, mutability, key-finding ===")
     data_for_fig2(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
 
-    # Run analysis for Figure 3
+    print("\n=== Fig 3: Note substitutions ===")
     data_for_fig3(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
 
-    # Run analysis for Figure 4
+    print("\n=== Fig 4: Sequence position effects ===")
     data_for_fig4(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
 
-    # Run analysis for Figure 5
-    data_for_fig5(res0, mismatches, redo=redo)
+    print("\n=== Fig 5: Sequence covariance ===")
+    data_for_fig5(res0, parts_data, redo=redo)
 
 
 if __name__ == "__main__":
