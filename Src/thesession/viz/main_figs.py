@@ -17,15 +17,15 @@ from sklearn.manifold import MDS, TSNE
 from sklearn.metrics import roc_curve, roc_auc_score
 import statsmodels.api as sm
 
-import part_alignments as PA
-from global_variables import *
-import load_tunes
+from thesession.alignment import parts as PA
+from thesession.config import *
+from thesession.io import tune_loader as load_tunes
 import plots
-import savage
-import seq_io
-import si_figs
-import substitution_matrix as SM
-import utils
+from thesession.io import savage_loader as savage
+from thesession.io import seq_io
+from thesession.viz import si_figs
+from thesession.analysis import substitution as SM
+from thesession import utils
 
 
 #######################################################################

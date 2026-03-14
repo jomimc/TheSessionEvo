@@ -10,9 +10,9 @@ except:
     PARASAIL_WORKS = False
 import pandas as pd
 
-from global_variables import *
-import load_tunes
-import seq_io
+from thesession.config import *
+from thesession.io import tune_loader as load_tunes
+from thesession.io import seq_io
 
 
 ########################################################################################

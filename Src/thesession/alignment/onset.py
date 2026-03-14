@@ -4,10 +4,10 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from tqdm import tqdm
 
-from global_variables import *
+from thesession.config import *
 import plots
-import seq_align
-import utils
+from thesession.alignment import pairwise as seq_align
+from thesession import utils
 
 
 def align_melodies(onset1, onset2, tchroma1, tchroma2, seq_align):

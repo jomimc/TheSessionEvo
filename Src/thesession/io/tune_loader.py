@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from global_variables import *
-import tune_parser as TP
-import utils
+from thesession.config import *
+from thesession.io import tune_parser as TP
+from thesession import utils
 
 
 

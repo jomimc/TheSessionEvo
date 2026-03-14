@@ -3,9 +3,9 @@ from collections import Counter, defaultdict
 import numpy as np
 from scipy.stats import pearsonr, multinomial, entropy
 
-from global_variables import *
-import part_alignments as PA
-import utils
+from thesession.config import *
+from thesession.alignment import parts as PA
+from thesession import utils
 
 
 ###################################################################

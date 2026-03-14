@@ -12,8 +12,8 @@ import pandas as pd
 from scipy.stats import entropy
 from tqdm import tqdm
 
-from global_variables import *
-import utils
+from thesession.config import *
+from thesession import utils
 
 
 #######################################################

@@ -3,8 +3,8 @@ from collections import defaultdict
 from Bio import Seq, SeqRecord, SeqIO
 import pandas as pd
 
-from global_variables import *
-import utils
+from thesession.config import *
+from thesession import utils
 
 ######################################################################
 ### Write to fasta

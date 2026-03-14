@@ -12,10 +12,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import load_tunes
-import tune_parser as TP
-from global_variables import *
-import utils
+from thesession.io import tune_loader as load_tunes
+from thesession.io import tune_parser as TP
+from thesession.config import *
+from thesession import utils
 
 
 #######################################################

@@ -1,13 +1,19 @@
 import music21
 
-from global_variables import *
-import load_tunes, seq_io, plots, pyabc, utils, seq_align, run_main, savage, main_figs, si_figs
-import substitution_matrix as SM
-import onset_align as OA
-import optimize_parameters as OP
-import tune_parser as TP
-import part_alignments as PA
-import part_separation as PS
+from thesession.config import *
+from thesession.io import tune_loader as load_tunes, seq_io, pyabc
+from thesession.alignment import pairwise as seq_align
+from thesession.io import savage_loader as savage
+from thesession.viz import main_figs, si_figs
+from thesession import utils
+import plots
+import run_pipeline as run_main
+from thesession.analysis import substitution as SM
+from thesession.alignment import onset as OA
+from thesession.analysis import optimization as OP
+from thesession.io import tune_parser as TP
+from thesession.alignment import parts as PA
+from thesession.structure import part_separation as PS
 
 df, tunes = load_tunes.load_thesession_data(redo=False)
 df_parts, parts_data = PS.get_all_parts_thesession(df, tunes, redo=False)

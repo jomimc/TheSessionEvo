@@ -13,19 +13,19 @@ from sklearn.metrics import roc_curve, roc_auc_score
 import statsmodels.api as sm
 from tqdm import tqdm
 
-from global_variables import *
-import load_tunes
-import key_mode_finder as KMF
-import onset_align as OA
-import optimize_parameters as OP
-import part_alignments as PA
-import part_separation as PS
+from thesession.config import *
+from thesession.io import tune_loader as load_tunes
+from thesession.analysis import key_mode as KMF
+from thesession.alignment import onset as OA
+from thesession.analysis import optimization as OP
+from thesession.alignment import parts as PA
+from thesession.structure import part_separation as PS
 import plots
-import savage
-import seq_align
-import seq_io
-import substitution_matrix as SM
-import utils
+from thesession.io import savage_loader as savage
+from thesession.alignment import pairwise as seq_align
+from thesession.io import seq_io
+from thesession.analysis import substitution as SM
+from thesession import utils
 
 
 ###################################################################################################
@@ -205,14 +205,14 @@ def run_main_alignments(redo=False):
     ### CHEKC THIS!!! PROBABLY DOES NOT WORK!!!
 
     res = load_mmseqs(parts_data, "thesession_parts", redo=redo, annotate=False, save_fasta=False)
-    print(f"mmseqs gave {len(ref)} tune pairs")
+    print(f"mmseqs gave {len(res)} tune pairs")
 
     res = PA.prune_identical_parts(res, parts_data)
-    print(f"Pruning identical parts leaves {len(ref)} tune pairs")
+    print(f"Pruning identical parts leaves {len(res)} tune pairs")
 
     # Align parts using new algorithm
     res, res0, mismatches = PA.annotate_res(df, res, parts_data, redo=redo)
-    print(f"Final set: {len(ref0)} tune pairs")
+    print(f"Final set: {len(res0)} tune pairs")
 
     return df, tunes, df_parts, parts_data, res, res0, mismatches
 
@@ -582,24 +582,6 @@ def get_bar_subrate(mismatches, max_bar=8):
             sub_rate[b] += 1 / grid_per_bar
         sub_rate_all.append(sub_rate)
     return np.array(sub_rate_all)
-
-
-### Bootstrap substitution rates to get confidence intervals
-def get_bar_subrate_stats(sub_rate_all, weights, nrep=1000):
-    # Normalize the weights
-    w = weights / np.sum(weights)
-
-    # Calculate the weighted mean
-    Y = np.sum(sub_rate_all * w[:,None], axis=0)
-
-    # Calculate errors from bootstrapping
-    idx = np.arange(w.size)
-    Ysample = []
-    for _ in range(nrep):
-        sample = np.random.choice(idx, size=w.size, replace=True)
-        Ysample.append(np.sum(sub_rate_all[sample] * w[sample,None] / np.sum(w[sample]), axis=0))
-    Ysample = np.array(Ysample)
-    return Y, Ysample
 
 
 ### Calculate the substitution rate as a function of the position within a measure.

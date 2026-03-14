@@ -7,13 +7,13 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 
-from global_variables import *
-import load_tunes
-import optimize_parameters as OP
-import seq_align
-import substitution_matrix as SM
-import tune_parser as TP
-import utils
+from thesession.config import *
+from thesession.io import tune_loader as load_tunes
+from thesession.analysis import optimization as OP
+from thesession.alignment import pairwise as seq_align
+from thesession.analysis import substitution as SM
+from thesession.io import tune_parser as TP
+from thesession import utils
 
 
 ### Load the set of manually-aligned sequence pairs from Savage et al.

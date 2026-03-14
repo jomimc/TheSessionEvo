@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from global_variables import *
-import load_tunes
-import onset_align as OA
-import seq_align
-import seq_io
-import utils
+from thesession.config import *
+from thesession.io import tune_loader as load_tunes
+from thesession.alignment import onset as OA
+from thesession.alignment import pairwise as seq_align
+from thesession.io import seq_io
+from thesession import utils
 
 
 

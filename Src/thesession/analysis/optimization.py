@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_curve, roc_auc_score
 
-import load_tunes
-import savage
-import seq_align
-import seq_io
-import substitution_matrix as SM
-from global_variables import *
+from thesession.io import tune_loader as load_tunes
+from thesession.io import savage_loader as savage
+from thesession.alignment import pairwise as seq_align
+from thesession.io import seq_io
+from thesession.analysis import substitution as SM
+from thesession.config import *
 
 
 

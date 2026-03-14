@@ -4,8 +4,8 @@ import re
 import music21
 import numpy as np
 
-from global_variables import *
-import pyabc
+from thesession.config import *
+from thesession.io import pyabc
 
 
 ### Notes to self...

@@ -2,7 +2,7 @@ from collections import Counter
 import numpy as np
 from scipy.stats import pearsonr, spearmanr
 
-from global_variables import *
+from thesession.config import *
 
 ######################################################################
 ### Convert sequence format

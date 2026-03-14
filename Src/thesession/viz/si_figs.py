@@ -14,15 +14,15 @@ import seaborn as sns
 from sklearn.metrics import roc_curve, roc_auc_score
 import statsmodels.api as sm
 
-import part_alignments as PA
-from global_variables import *
-import load_tunes
-import main_figs
+from thesession.alignment import parts as PA
+from thesession.config import *
+from thesession.io import tune_loader as load_tunes
+from thesession.viz import main_figs
 import plots
-import savage
-import seq_io
-import substitution_matrix as SM
-import utils
+from thesession.io import savage_loader as savage
+from thesession.io import seq_io
+from thesession.analysis import substitution as SM
+from thesession import utils
 
 
 #######################################################################
