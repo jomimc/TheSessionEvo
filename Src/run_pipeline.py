@@ -20,7 +20,6 @@ from thesession.alignment import onset as OA
 from thesession.analysis import optimization as OP
 from thesession.alignment import parts as PA
 from thesession.structure import part_separation as PS
-import plots
 from thesession.io import savage_loader as savage
 from thesession.alignment import pairwise as seq_align
 from thesession.io import seq_io
@@ -359,6 +358,7 @@ def data_for_fig3(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=F
 
     path = PATH_FIG_DATA.joinpath(f"sub_dist_all.npy")
     _ = note_sub_dist(res0, mismatches, parts_data, path, alpha=0.5, redo=redo)
+    note_sub_dist_savage(redo=redo)
     
     idx_list = utils.get_mode_indices(res0, mismatches, mode_alg)
     for mode, idx in zip(MODES.keys(), idx_list):

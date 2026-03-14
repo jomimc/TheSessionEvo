@@ -18,7 +18,6 @@ from thesession.alignment import parts as PA
 from thesession.config import *
 from thesession.io import tune_loader as load_tunes
 from thesession.viz import main_figs
-import plots
 from thesession.io import savage_loader as savage
 from thesession.io import seq_io
 from thesession.analysis import substitution as SM
@@ -33,7 +32,7 @@ def plot_savage_submat(letters, mat):
 
     # Observations
 #   plots.plot_submat(letters, mat, ax=ax[0])
-    plots.plot_submat_graph(letters, mat, ax=ax[0], norm=False)
+#   plots.plot_submat_graph(letters, mat, ax=ax[0], norm=False)
 
     # Outer product
     diag = np.diagonal(mat)
@@ -42,12 +41,12 @@ def plot_savage_submat(letters, mat):
     outer = np.outer(frequency, frequency) * 0.1
     np.fill_diagonal(outer, np.diagonal(outer) + 0.9 * diag)
 #   plots.plot_submat(letters, outer, ax=ax[1])
-    plots.plot_submat_graph(letters, outer, ax=ax[1], norm=False)
+#   plots.plot_submat_graph(letters, outer, ax=ax[1], norm=False)
 
     # Log-odds
 #   mat = SM.obs_mat_to_log_odds(mat)
 #   plots.plot_submat(letters, mat, ax=ax[2])
-    plots.plot_submat_graph(letters, mat, ax=ax[2], norm=True)
+#   plots.plot_submat_graph(letters, mat, ax=ax[2], norm=True)
 
 
 #######################################################################

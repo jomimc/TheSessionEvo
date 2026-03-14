@@ -94,54 +94,6 @@ def load_df_full():
     return pd.read_excel('../Data/Bronson/MelodicEvoSeqFullSongs.xlsx', sheet_name='MelodicEvoSeq')
 
 
-### The Fitchlab dataset does not include the correct references, so in order to
-### match the Savage et al pairs with the newly-digitized ABC files, I need to 
-### match the sequences...
-### This didn't work well (should only work if there are no errors, but there are errors...)
-### so the appropriate course to take is to properly annotate the Fitchlab dataset,
-### as it should have been done from the start.
-def find_closest_match(df, df_fitch):
-    ref, midi = df_fitch.loc[df_fitch.midi.notnull(), ['ref', 'midi']].values.T
-    chroma = [m % 12 for m in midi]
-    chroma_by_len = defaultdict(list)
-    for c in chroma:
-        chroma_by_len[len(c)].append(c)
-
-    for k, v in chroma_by_len.items():
-        chroma_by_len[k] = np.array(v)
-
-    count = 0
-    for i in df.loc[df.Language=='English'].index:
-        letter_seq = df.loc[i, "Full note sequence (unaligned)"]
-        chroma_seq = np.array([note_map[n] for n in letter_seq if len(n.strip())])
-        L = len(chroma_seq)
-        if L not in chroma_by_len:
-            print(f"Sequence length {L} not in dataset: {i}")
-            continue
-        dist = [cdist((chroma_by_len[L].reshape(-1,L) - i)%12, chroma_seq.reshape(1,L))[:,0].min() for i in range(12)]
-        print(i, np.min(dist))
-        if np.min(dist) == 0:
-            count += 1
-    return count
-
-
-### (Deprecated :: to be deleted once superseded by better evaluation algorithm)
-### Evaluating algorithmic alignments by comparing the number of gaps
-### to the number of gaps in the manual alignment.
-def optimize_alignment_params(df):
-    pair_list = np.array(sorted(df['PairNo'].unique()))
-    gap_gt, gap_nw = [], []
-    for pair in pair_list:
-        idx = df['PairNo'] == pair
-        al1, al2 = df.loc[idx, 'seq_aligned'].apply(lambda x: x.strip())
-        gap_gt.append(utils.find_gaps(al1, al2))
-
-        s1, s2 = [utils.tchroma2seq(v) for v in df.loc[idx, 'tchroma'].values]
-        al1, al2 = seq_align.get_pairwise_alignment(s1, s2, alg='global')
-        gap_nw.append(utils.find_gaps(al1, al2))
-    return gap_gt, gap_nw
-
-
 ### Given a sequence, and an aligned version (i.e. the sequence plus gaps),
 ### replace the characters in the aligned version with the characters from
 ### the given sequence

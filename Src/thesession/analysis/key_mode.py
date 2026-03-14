@@ -189,7 +189,6 @@ def predict_key_family(res, parts, mode_profiles, tune_id, p0, meter, factor=4, 
     return out.mean(axis=0)
 
 
-
 def compare_pearson_and_bayesian(mode_profiles, mode='major', nrep=100):
     N_arr = np.concatenate([np.arange(2, 10, 2), np.arange(10, 55, 5)])
     res = []

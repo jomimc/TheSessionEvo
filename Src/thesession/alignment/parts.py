@@ -242,52 +242,8 @@ def get_mint_dist(tunes):
     return X, Y
 
 
-### Get the melodic interval distribution from bars
-def get_mint_dist_bars(bars):
-    X = np.arange(1, 18)
-    count = {x: 0 for x in X}
-    for d in bars.values():
-        C = Counter(np.abs(np.diff(d[1])))
-        for k in count.keys():
-            count[k] += C.get(k, 0)
-    Y = np.array([count.get(x, 0) for x in X])
-    Y = Y / Y.sum()
-    return X, Y
-
-
-def get_mint_dist_part(part):
-    X = np.arange(1, 18)
-    count = {x: 0 for x in X}
-    for d in part.values():
-        C = Counter(np.abs(np.diff(d[1])))
-        for k in count.keys():
-            count[k] += C.get(k, 0)
-    Y = np.array([count.get(x, 0) for x in X])
-    Y = Y / Y.sum()
-    return X, Y
-
-
 #######################################################
 ### Multiple part alignment
-
-
-def get_msa(res, parts, query, min_pid=0.85, max_grid=16, nbars=8, factor=2, part_list=None):
-    if isinstance(part_list, type(None)):
-        part_list = np.unique(res.loc[((res['query']==query)|(res['target']==query))
-                                      &(res.fident>=min_pid)&(res.target_meter==res.query_meter),
-                                      ['query', 'target']].values)
-#   factor = max_grid / (4 * eval(meter))
-    ngrid = nbars * max_grid
-
-    tc1, tc2 = part2grid(parts[part_list[0]][0], parts[part_list[1]][0], factor)[:2]
-    tc1, tc2 = correct_octave_diff(tc1, tc2)
-    tc_list = [tc1[:ngrid], tc2[:ngrid]]
-    for i in range(2, len(part_list)):
-        tc1, tc3 = part2grid(parts[part_list[0]][0], parts[part_list[i]][0], factor)[:2]
-        tc1, tc3 = correct_octave_diff(tc1, tc3)
-        if tc3.size >= ngrid:
-            tc_list.append(tc3[:ngrid])
-    return np.array(tc_list)
 
 
 def get_msa_family(res, parts, tune_id, p=0, min_pid=0.85, max_grid=16, nbars=8, factor=2, part_list=None):

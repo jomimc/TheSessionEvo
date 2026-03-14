@@ -21,27 +21,6 @@ from thesession import utils
 #######################################################
 ### Load bars
 
-
-### Reload tune with bar information (EVENTUALLY this should be moved upstream)
-#ef get_bars(df, tunes, i):
-#   d = TP.parse_thesession_tune(df.loc[i].to_dict(), 'music21')
-#   d.update({'tmidi': tunes[df.loc[i, 'setting_id']]['tmidi']})
-#   return d
-
-
-### Load all settings for a tune, with extra bar information (see above function...)
-def get_bars_tune(df, tunes, tune_id):
-    to_keep = []
-    dm = []
-    for i, j in enumerate(df.loc[df.tune_id==tune_id].index):
-        try:
-            dm.append(get_bars(df, tunes, j))
-            to_keep.append(i)
-        except Exception as e:
-            print(i, e)
-    return dm, to_keep
-
-
 ### Separate a setting into its bars
 def extract_bars(tunes):
     bars, dur, tmidi = [tunes[x] for x in ['bars', 'dur', 'tmidi']]
@@ -256,7 +235,6 @@ def evaluate_nparts_params(df, tunes):
     cutoff_list = np.arange(0.5, 1, 0.05)
     acc = []
     for t in tune_list:
-#       dm, to_keep = get_bars_tune(df, tunes, t)
         for cutoff in cutoff_list:
             acc.append(evaluate_nparts(df, tunes, t, cutoff=cutoff))
     return np.array(acc).reshape(len(tune_list), len(cutoff_list))

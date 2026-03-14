@@ -20,7 +20,6 @@ import statsmodels.api as sm
 from thesession.alignment import parts as PA
 from thesession.config import *
 from thesession.io import tune_loader as load_tunes
-import plots
 from thesession.io import savage_loader as savage
 from thesession.io import seq_io
 from thesession.viz import si_figs

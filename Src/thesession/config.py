@@ -5,13 +5,13 @@ import numpy as np
 
 
 ### Path to directory
-PATH_BASE = [p for p in Path().cwd().parents if p.stem == 'MelodicSequenceAlignment'][0]
-PATH_DATA = PATH_BASE.joinpath("Data")
+PATH_BASE = Path("/home/jmcbride/projects/TheSessionEvo")
+PATH_DATA = Path("/home/jmcbride/projects/MelodicSequenceAlignment/Data")
 PATH_FIG = PATH_BASE.joinpath("Figures")
-PATH_FIG_DATA = PATH_FIG.joinpath("Data")
+PATH_FIG_DATA = PATH_FIG.joinpath("FigureData")
 
 ### Number of processors used in multiprocessing
-N_PROC = 60
+N_PROC = 8
 
 ### Set of letters to be used with alignment algorithms
 letters = np.array(list(protein_letters + 'X'))

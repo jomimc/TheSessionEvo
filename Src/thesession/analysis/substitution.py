@@ -102,25 +102,6 @@ def generate_all_sub_mat():
 
 
 ######################################################################
-### Convert msa formats
-
-
-### Convert msa from sequence letters (A, B, etc.)
-### to chromatic letters (C, C#, etc.)
-def convert_msa_letters(msa):
-    return np.vectorize(letter_key.__getitem__)(np.array(msa))
-
-
-### Convert msa from sequence letters (A, B, etc.)
-### to transposed chroma values
-def convert_msa_letters_chroma(msa):
-    msa = np.vectorize(position_key.__getitem__)(np.array(msa)).astype(float)
-    # Convert gaps (assigned a value of 100) to nan values
-    msa[msa==100] = np.nan
-    return msa
-
-
-######################################################################
 ### Get substitution rates / matrices from MSA
 
 
@@ -149,14 +130,6 @@ def count_substitutions_from_msa(msa, gap_max=0.3, observations=None):
         for i, k1 in enumerate(keys[:-1]):
             for k2 in keys[i+1:]:
                 observations[(min(k1, k2), max(k1, k2))] += count[k1] * count[k2]
-    return observations
-
-
-### Count overall substitution rates from a list of MSAs
-def count_subs_many_msa(msa_list, gap_max=0.3):
-    observations = defaultdict(int)
-    for msa in msa_list:
-        observations = count_substitutions_from_msa(msa, gap_max, observations)
     return observations
 
 
@@ -193,23 +166,6 @@ def count_subs_pairwise_str(al1, al2, obs=None):
         if (a != '-') and (b != '-'):
             obs[(min(a, b), max(a, b))] += 1
     return obs
-
-
-def count_subs_pairwise_float(al1, al2, obs=None):
-    if isinstance(obs, type(None)):
-        obs = defaultdict(int)
-    for i in np.where(~np.isnan(al1) & ~np.isnan(al2))[0]:
-        a, b = al1[i], al2[i]
-        obs[(min(a, b), max(a, b))] += 1
-    return obs
-
-
-def count_subs_many_pairwise(alignment_list):
-    obs = defaultdict(int)
-    for (al1, al2) in alignment_list:
-        obs = count_subs_pairwise(al1, al2, obs)
-    return obs
-
 
 
 ######################################################################

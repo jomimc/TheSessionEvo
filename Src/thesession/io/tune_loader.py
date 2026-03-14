@@ -13,37 +13,6 @@ from thesession import utils
 
 
 ######################################################################
-### Load any dataset
-
-
-def load_data_dataset(dataset):
-    if dataset == 'thesession':
-        return load_thesession_data()
-    elif dataset == 'meertens':
-        return load_meertens_data()
-    elif dataset == 'bronson':
-        return load_bronson_data()
-
-
-def load_df_dataset(dataset):
-    if dataset == 'thesession':
-        path_df = PATH_BASE.joinpath("Results", "thesession.pkl")
-        if path_df.exists():
-            return pd.read_pickle(path_df)
-        return load_thesession_data()[0]
-
-    elif dataset == 'meertens':
-        path_df = PATH_BASE.joinpath("Results", "meertens_summary.pkl")
-        if path_df.exists():
-            return pd.read_pickle(path_df)
-        return load_meertens_data()[0]
-
-    elif dataset == 'bronson':
-        return load_bronson_data()
-
-
-
-######################################################################
 ### thesession data
 
 
@@ -277,14 +246,6 @@ def load_bronson_data(redo=False):
     df['tchroma_octave'] = [a.astype(int) for a in df['tmidi']]
     df['tchroma'] = [a.astype(int) for a in df['tmidi'] % 12]
     return df
-
-
-
-
-if __name__ == "__main__":
-
-    df = process_tunes(*load_thesession_data())
-    run_all_pairwise(df)
 
 
 

@@ -209,18 +209,6 @@ def get_key_idx_from_tune(tune):
     return key_by_note[0], has_keys
 
 
-def get_key_idx_from_mode(mode):
-    key = {'G':7, 'D':2, 'A':9, 'B':11, 'C':0, 'F':5, 'E':4}
-    return key.get(mode[0])
-
-
-def tchroma_to_tnote(tchroma):
-    if not len(tchroma):
-        return ''
-    key = np.array(list('ccddeeffgaabb'))
-    return ''.join(key[tchroma])
-
-
 def get_note_str(tune):
     return ''.join([n.note for n in tune.notes])
 

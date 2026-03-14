@@ -16,13 +16,6 @@ def tchroma2seq(tchroma):
         return ''.join(letters[tchroma.astype(int)])
 
 
-def seq2tchroma(seq):
-    try:
-        return ''.join(letters[tchroma])
-    except:
-        return ''.join(letters[tchroma.astype(int)])
-
-
 ### Find where a substring starts and ends in a longer string
 def find_matching_indices(string, substring):
     N = len(substring)
@@ -72,78 +65,6 @@ def reverse_mapping_idx(tchroma, align):
     else:
         start, end = find_matching_indices(letter_seq, ''.join(align[idx_nongap]))
         return start, end
-
-
-######################################################################
-### Functions to be moved...
-
-### Next steps
-###     determine whether tune families should be merged
-###     determine whether some settings should be moved to other families
-###     do the inverse -- which settings are not placed in their families?
-
-
-### Check reasons why clustering goes wrong.
-### Correct for errors in dataset if needed.
-### Then group everything and create MSA
-### Then get substitution matrices for different conditions.
-### Then start writing code to deal with gaps
-
-def is_tune_clustered(df, clust_matches, families, family_key):
-
-    clust = defaultdict(list)
-    for i, j in zip(*clust_matches.T):
-        clust[i].append(family_key[j])
-
-    not_in_correct = set()
-    incorrect = set()
-    for k, v in families.items():
-        not_in_correct = not_in_correct | set(v).difference(clust[k])
-        incorrect = incorrect | set(clust[k]).difference(v)
-
-    for i, s in enumerate(df.setting_id):
-        if s in incorrect:
-            df['mmseqs_clust'] = 'wrong'
-        elif s in not_in_correct:
-            df['mmseqs_clust'] = 'none'
-        else:
-            df['mmseqs_clust'] = 'right'
-
-    return df
-
-
-def find_best_match_of_wrong(df, res):
-    inscore, outscore = [], []
-    for i in df.loc[df.mmseqs_clust==False].index:
-        t, s = df.loc[i, ['tune_id', 'setting_id']]
-        idx = (res['query'] == s) | (res['target'] == s)
-        inscore.append(res.loc[idx&(res.in_fam==True), 'fident'].max())
-        outscore.append(res.loc[idx&(res.in_fam==False), 'fident'].max())
-    return np.array(inscore), np.array(outscore)
-
-
-def reverse_mapping_single_family(df, tune_id, msa_list):
-    new_msa_list = []
-    idx = df.tune_id == tune_id
-    tchroma = df.loc[idx, 'tchroma'].values
-    tchroma_oct = df.loc[idx, 'tchroma_octave'].values
-    for j in range(len(tchroma)):
-        # make a copy so that the original is not altered;
-        # also change the type, so strings can have 3 characters (2 digits and a minus sign)
-        msa = msa_list[j].copy().astype("U3")
-        new_msa_list.append(reverse_mapping(tchroma[j], tchroma_oct[j], msa))
-    return np.array(new_msa_list)
-
-
-def tune_families_reverse_mapping(df, msa_list, minsize=5):
-    tune_id_count = df.tune_id.value_counts()
-    i = 0
-    msa_list_oct = []
-    for t, c in tune_id_count.items():
-        if c >= minsize:
-            msa_list_oct.append(reverse_mapping_single_family(df, t, msa_list[i]))
-            i += 1
-    return msa_list_oct
 
 
 def pairwise_reverse_mapping(df, res, pairwise_align, ref='setting_id'):
