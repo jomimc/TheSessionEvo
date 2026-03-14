@@ -127,9 +127,9 @@ def prune_identical_parts(res, parts):
 
 ### Filter and annotate pairs of parts identified using mmseqs
 def annotate_res(df, df_parts, res, parts, redo=False):
-    path_results = [PATH_BASE.joinpath("Results", n) for n in ["pairs_thesession_parts.pkl",
-                                                               "pairs_thesession_parts_hits.pkl",
-                                                               "pairs_thesession_parts_mismatches.pkl"]]
+    path_results = [PATH_CACHE.joinpath(n) for n in ["pairs_thesession_parts.pkl",
+                                                     "pairs_thesession_parts_hits.pkl",
+                                                     "pairs_thesession_parts_mismatches.pkl"]]
     if np.all([p.exists() for p in path_results]) and not redo:
         return [pd.read_pickle(p) for p in path_results]
 

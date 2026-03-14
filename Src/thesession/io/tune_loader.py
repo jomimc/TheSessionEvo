@@ -20,8 +20,8 @@ from thesession import utils
 ### Runs preliminary pipeline if there is no cached data,
 ### or if redo=True
 def load_thesession_data(redo=False):
-    path_df = PATH_BASE.joinpath("Cache", "thesession_cleaned_processed.pkl")
-    path_data = PATH_BASE.joinpath("Cache", "thesession_music21.pkl")
+    path_df = PATH_CACHE.joinpath("thesession_cleaned_processed.pkl")
+    path_data = PATH_CACHE.joinpath("thesession_music21.pkl")
     if (path_df.exists() and path_data.exists()) and not redo:
         df = pd.read_pickle(path_df)
         data = pickle.load(open(path_data, 'rb'))
@@ -58,8 +58,8 @@ def process_thesession_tunes(redo=False):
     # Statistically infer the most likely mode, given the tonal hierachy
     df['inferred_mode'] = df['setting_id'].apply(lambda x: utils.check_mode(tunes[x]['tchroma']))
 
-    path_df = PATH_BASE.joinpath("Cache", "thesession_cleaned_processed.pkl")
-    path_data = PATH_BASE.joinpath("Cache", "thesession_music21.pkl")
+    path_df = PATH_CACHE.joinpath("thesession_cleaned_processed.pkl")
+    path_data = PATH_CACHE.joinpath("thesession_music21.pkl")
     df.to_pickle(path_df)
     pickle.dump(tunes, open(path_data, 'wb'))
 
@@ -70,9 +70,9 @@ def process_thesession_tunes(redo=False):
 ### This stage is required for filtering out problematic tunes
 def process_thesession_tunes_pyabc(df, json_data, redo=False, full=False):
     if full:
-        path = PATH_BASE.joinpath("Cache", "thesession_full.pkl")
+        path = PATH_CACHE.joinpath("thesession_full.pkl")
     else:
-        path = PATH_BASE.joinpath("Cache", "thesession_clean.pkl")
+        path = PATH_CACHE.joinpath("thesession_clean.pkl")
 
     if path.exists() and not redo:
         return pickle.load(open(path, 'rb'))
@@ -136,7 +136,7 @@ def process_thesession_tunes_pyabc(df, json_data, redo=False, full=False):
 ### Primary extraction of melodic information, using music21
 ### Produces a dictionary, with setting_id as keys
 def process_thesession_tunes_music21(df, json_data, redo=False):
-    path = PATH_BASE.joinpath("Results", "thesession_music21.pkl")
+    path = PATH_CACHE.joinpath("thesession_music21.pkl")
     if path.exists() and not redo:
         return pickle.load(open(path, 'rb'))
     else:
@@ -202,8 +202,8 @@ def load_meertens_metadata(df):
 ### Creates a dataframe for metadata and summary stats,
 ### and a dictionary for the tune sequences
 def load_meertens_data(redo=False):
-    path_df = PATH_BASE.joinpath("Results", "meertens_summary.pkl")
-    path_data = PATH_BASE.joinpath("Results", "meertens_tunes.pkl")
+    path_df = PATH_CACHE.joinpath("meertens_summary.pkl")
+    path_data = PATH_CACHE.joinpath("meertens_tunes.pkl")
     if path_df.exists() and not redo:
         df = pd.read_pickle(path_df)
         data = pickle.load(open(path_data, 'rb'))

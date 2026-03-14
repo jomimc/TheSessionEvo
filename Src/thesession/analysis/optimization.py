@@ -39,12 +39,12 @@ def run_mmseqs(path_fasta, path_result, path_tmp, path_submat, gap_open, gap_ext
 
 def explore_parameter_space(df, dataset='thesession_tunes'):
     # Set up paths to input / outputs
-    path_base = PATH_BASE.joinpath(f'MMseqs/{dataset}')
+    path_base = PATH_MMSEQS.joinpath(f'{dataset}')
     path_fasta = path_base.joinpath(f"all_seq_{dataset}.fasta")
-    path_mmseqs = PATH_BASE.joinpath("MMseqs", "tmp", "result.m8")
+    path_mmseqs = PATH_MMSEQS.joinpath("tmp", "result.m8")
 
-    path_submat_list = sorted(PATH_BASE.joinpath("substitution_matrices").glob("*.out"))
-    path_results = PATH_BASE.joinpath("Cache/ParameterOptimizationSearch", dataset)
+    path_submat_list = sorted(PATH_MMSEQS.joinpath("substitution_matrices").glob("*.out"))
+    path_results = PATH_CACHE.joinpath("ParameterOptimizationSearch", dataset)
     path_results.mkdir(parents=True, exist_ok=True)
 
     # Load tune family annotations
@@ -150,7 +150,7 @@ def parse_filename(filename):
 
 
 def load_results_mmseqs(dataset):
-    path_results = PATH_BASE.joinpath("Cache/ParameterOptimizationSearch", dataset)
+    path_results = PATH_CACHE.joinpath("ParameterOptimizationSearch", dataset)
     path_list = sorted(path_results.glob("*json"))
     data = []
     for path in path_list:
@@ -171,7 +171,7 @@ def load_results_mmseqs(dataset):
 
 def optimize_alignment_savage():
     df = savage.load_df_aligned()
-    path_results = PATH_BASE.joinpath("Results/ParameterOptimizationAlignment")
+    path_results = PATH_CACHE.joinpath("ParameterOptimizationAlignment")
     params = params_savage()
 
     for ma, mi, go, ge in params:
@@ -197,7 +197,7 @@ def params_savage():
                     
 
 def load_results_savage():
-    path_results = PATH_BASE.joinpath("Results/ParameterOptimizationAlignment")
+    path_results = PATH_CACHE.joinpath("ParameterOptimizationAlignment")
     params = params_savage()
     output = []
     overall = []

@@ -8,7 +8,9 @@ import numpy as np
 PATH_BASE = Path("/home/jmcbride/projects/TheSessionEvo")
 PATH_DATA = Path("/home/jmcbride/projects/MelodicSequenceAlignment/Data")
 PATH_FIG = PATH_BASE.joinpath("Figures")
-PATH_FIG_DATA = PATH_FIG.joinpath("FigureData")
+PATH_FIG_DATA = PATH_BASE.joinpath("FigureData")
+PATH_CACHE = PATH_BASE.joinpath("Cache")
+PATH_MMSEQS = PATH_BASE.joinpath("MMseqs")
 
 ### Number of processors used in multiprocessing
 N_PROC = 8
@@ -35,7 +37,6 @@ note_map['c'] = 0
 
 ### Names (or paths to binaries) of software to run
 MMSEQS_BIN = 'mmseqs'
-MAFFT_BIN = 'mafft'
 
 
 ### Modes

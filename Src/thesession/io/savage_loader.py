@@ -19,17 +19,17 @@ from thesession import utils
 ### Load the set of manually-aligned sequence pairs from Savage et al.
 def load_savage_df(full=False, redo=False, keep_japanese=False):
     if full:
-        path = PATH_BASE.joinpath("Results/savage_full.pkl")
+        path = PATH_CACHE.joinpath("savage_full.pkl")
     else:
-        path = PATH_BASE.joinpath("Results/savage_part.pkl")
+        path = PATH_CACHE.joinpath("savage_part.pkl")
 
     if path.exists() and not redo:
         return pd.read_pickle(path)
 
     if full:
-        df = pd.read_excel('../Data/Bronson/MelodicEvoSeqFullSongs.xlsx', sheet_name='MelodicEvoSeq')
+        df = pd.read_excel(PATH_DATA.joinpath('Bronson/MelodicEvoSeqFullSongs.xlsx'), sheet_name='MelodicEvoSeq')
     else:
-        df = pd.read_excel('../Data/Bronson/MelodicEvoSeq.xlsx', sheet_name='MelodicEvoSeq')
+        df = pd.read_excel(PATH_DATA.joinpath('Bronson/MelodicEvoSeq.xlsx'), sheet_name='MelodicEvoSeq')
         if not keep_japanese:
             df = df.loc[df.Language=='English']
 
@@ -91,7 +91,7 @@ def load_checked_subset():
 
 ### Load the full set of sequence pairs from Savage et al.
 def load_df_full():
-    return pd.read_excel('../Data/Bronson/MelodicEvoSeqFullSongs.xlsx', sheet_name='MelodicEvoSeq')
+    return pd.read_excel(PATH_DATA.joinpath('Bronson/MelodicEvoSeqFullSongs.xlsx'), sheet_name='MelodicEvoSeq')
 
 
 ### Given a sequence, and an aligned version (i.e. the sequence plus gaps),

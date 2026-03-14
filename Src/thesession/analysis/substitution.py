@@ -79,7 +79,7 @@ def write_mmseqs_sub_mat(path, submat, nmax=12):
 
 ### Generate many substitution matrices for optimization
 def generate_all_sub_mat():
-    path_base = PATH_BASE.joinpath("substitution_matrices")
+    path_base = PATH_MMSEQS.joinpath("substitution_matrices")
     diag_arr = np.arange(2, 12, 2)
 
     ### First, generate type A, where off-diagonal is constant
@@ -266,7 +266,7 @@ def obs_mat_to_log_odds(mat):
 def get_observations_pairwise(dataset, df, res, ref='setting_id', mp=False):
     # Load all pairwise alignments
     setting2seq = {s: np.array(list(protein_letters))[tp] for s, tp in zip(df[ref], df.tchroma)}
-    path_results = PATH_BASE.joinpath("Results/PairwiseAlignments", dataset)
+    path_results = PATH_CACHE.joinpath("PairwiseAlignments", dataset)
     pairwise_align = seq_align.run_all_pairwise_res(res, setting2seq, path_results, mp=mp)
 
     # Set up dictionaries for mapping
@@ -313,7 +313,7 @@ def get_observations_onset_alignment(dataset, df, data, min_pid=0.85):
 
 def get_observations_dataset(dataset, alg='pairwise', min_PID=0.5, sep_types=False, mp=False):
     # Set up path to results
-    path_results = PATH_BASE.joinpath("Results/SubstitutionCounts", dataset)
+    path_results = PATH_CACHE.joinpath("SubstitutionCounts", dataset)
     path_results.mkdir(parents=True, exist_ok=True)
 
     # Choose algorthm

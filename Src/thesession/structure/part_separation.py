@@ -142,8 +142,8 @@ def get_all_parts_tune(df, tunes, tune_id, min_bars=8):
 ### Load all parts from TheSession tunes
 ### (code takes about 2 hours to run)
 def get_all_parts_thesession(df, tunes, redo=False):
-    path_df = PATH_BASE.joinpath("Cache", "all_parts_thesession_df.pkl")
-    path = PATH_BASE.joinpath("Cache", "all_parts_thesession.pkl")
+    path_df = PATH_CACHE.joinpath("all_parts_thesession_df.pkl")
+    path = PATH_CACHE.joinpath("all_parts_thesession.pkl")
     if all([path_df.exists(), path.exists()]) and not redo:
         return pickle.load(open(path, 'rb')), pd.read_pickle(path_df)
     else:

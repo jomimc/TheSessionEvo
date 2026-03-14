@@ -41,7 +41,7 @@ def run_mmseqs(df, name, go=4, ge=3, ref='ref', save_fasta=True):
         raise Exception("MMseqs is not found in the system path. Aborting!")
 
     # Save to fasta
-    path_base = PATH_BASE.joinpath(f'MMseqs/{name}')
+    path_base = PATH_MMSEQS.joinpath(f'{name}')
     path_base.parent.mkdir(parents=True, exist_ok=True)
     fasta_name = f'all_seq_{name}.fasta'
     if save_fasta:
@@ -49,7 +49,7 @@ def run_mmseqs(df, name, go=4, ge=3, ref='ref', save_fasta=True):
         seq_io.write_all_seq_to_fasta(df.tchroma, df[ref], path_fasta)
 
     # Save substitution matrix file
-    path_submat = PATH_BASE.joinpath(f'MMseqs/{name}/matrix.out')
+    path_submat = PATH_MMSEQS.joinpath(f'{name}/matrix.out')
     submat = SM.basic_submat_A(6, -4)
     SM.write_mmseqs_sub_mat(path_submat, submat, nmax=12)
 
@@ -77,7 +77,7 @@ def run_mmseqs(df, name, go=4, ge=3, ref='ref', save_fasta=True):
 
 ### Load mmseqs results (or run mmseqs if not done yet)
 def load_mmseqs(df, dataset, ref='setting_id', redo=False, annotate=True, save_fasta=True):
-    path = PATH_BASE.joinpath(f"MMseqs/{dataset}/result.m8")
+    path = PATH_MMSEQS.joinpath(f"{dataset}/result.m8")
     if not path.exists() or redo:
         # Create folder + files and run mmseqs
         run_mmseqs(df, dataset, ref=ref, save_fasta=save_fasta)
@@ -103,7 +103,7 @@ def data_for_fig1(redo=False):
     print("Running on TheSession data")
 
     # Load the full TheSession dataset
-    path = PATH_BASE.joinpath("Results/thesession_tunes.pkl")
+    path = PATH_CACHE.joinpath("thesession_tunes.pkl")
     if path.exists() and not redo:
         df = pd.read_pickle(path)
     else:

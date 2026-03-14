@@ -29,7 +29,7 @@ def write_all_seq_to_fasta(seq_list, id_list, path, convert=True):
 
 
 def write_parts_thesession(parts):
-    path = PATH_BASE.joinpath('MMseqs/thesession_parts/all_seq_thesession_parts.fasta')
+    path = PATH_MMSEQS.joinpath('thesession_parts/all_seq_thesession_parts.fasta')
     path.parent.mkdir(parents=True, exist_ok=True)
     records = [make_pitch_seqrecord(ID, part[0][1] % 12)  for ID, part in parts.items()]
     write_fasta(path, records)
