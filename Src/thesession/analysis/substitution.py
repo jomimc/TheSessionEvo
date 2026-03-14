@@ -11,7 +11,6 @@ import pandas as pd
 
 from thesession.config import *
 from thesession.io import tune_loader as load_tunes
-from thesession.alignment import onset as OA
 from thesession.alignment import pairwise as seq_align
 from thesession.io import seq_io
 from thesession import utils
@@ -258,110 +257,5 @@ def obs_mat_to_log_odds(mat):
     log_odds[~np.isfinite(log_odds)] = np.nan
     return log_odds
 
-
-######################################################################
-### Count observations in each dataset
-
-
-def get_observations_pairwise(dataset, df, res, ref='setting_id', mp=False):
-    # Load all pairwise alignments
-    setting2seq = {s: np.array(list(protein_letters))[tp] for s, tp in zip(df[ref], df.tchroma)}
-    path_results = PATH_CACHE.joinpath("PairwiseAlignments", dataset)
-    pairwise_align = seq_align.run_all_pairwise_res(res, setting2seq, path_results, mp=mp)
-
-    # Set up dictionaries for mapping
-    setting2tchroma = {s: tp for s, tp in zip(df[ref], df.tchroma)}
-    setting2tchroma_oct = {s: tp for s, tp in zip(df[ref], df.tchroma_octave)}
-
-    # Set up container for observations
-    obs = defaultdict(int)
-    
-    # Iterate over alignments (in protein letter format)
-    for i, (al1, al2) in zip(res.index, pairwise_align):
-        # Get song references for the two sequences
-        s1, s2 = res.loc[i, ['query', 'target']]
-
-        # Map alignments to the transposed midi representation
-        tmidi_al1 = utils.reverse_mapping(setting2tchroma[s1], setting2tchroma_oct[s1], al1)
-        tmidi_al2 = utils.reverse_mapping(setting2tchroma[s2], setting2tchroma_oct[s2], al2)
-
-        # Count observations 
-        obs = count_subs_pairwise_float(tmidi_al1, tmidi_al2, obs)
-
-    return obs
-
-
-def get_observations_msa(dataset, df):
-    # Load all multiple sequence alignments
-    msa_list = seq_io.load_tune_families_msa(dataset, df)
-    # Convert to transposed midi
-    msa_list_oct = utils.tune_families_reverse_mapping(df, msa_list)
-    # Count observations
-    return count_subs_many_msa(msa_list_oct)
-
-
-def get_observations_onset_alignment(dataset, df, data, min_pid=0.85):
-    # Load onset alignments (already in tmidi format)
-    onset_alignments = OA.get_tune_family_alignments(df, data)
-    # Set up container for observations
-    obs = defaultdict(int)
-    for al1, al2 in onset_alignments:
-        # Count observations 
-        obs = count_subs_pairwise_float(al1, al2, obs)
-    return obs 
-
-
-def get_observations_dataset(dataset, alg='pairwise', min_PID=0.5, sep_types=False, mp=False):
-    # Set up path to results
-    path_results = PATH_CACHE.joinpath("SubstitutionCounts", dataset)
-    path_results.mkdir(parents=True, exist_ok=True)
-
-    # Choose algorthm
-    if alg == 'pairwise':
-        # Load data
-        df = load_tunes.load_df_dataset(dataset)
-        res = seq_io.load_mmseqs_results_dataset(dataset, df)
-        ref = {'thesession':'setting_id', 'meertens':'ref', 'bronson':'ref'}[dataset]
-
-        # Apply sequence identity cutoff
-        res = res.loc[(res.fident>=min_PID)&(res.fident<1)]
-        if not len(res):
-            return
-
-        # Filter by tune type, if specified
-        if sep_types:
-            type_list = df['type'].unique()
-            key = {k:v for k, v in zip(df[ref], df['type'])}
-            res['q_typ'] = res['query'].map(key)
-            res['t_typ'] = res['target'].map(key)
-            for typ in type_list:
-                path = path_results.joinpath(f"{alg}_{min_PID}_{typ}.pkl")
-                idx = (res['q_typ'] == typ) & (res['t_typ'] == type)
-                if np.sum(idx):
-                    obs = get_observations_pairwise(dataset, df, res.loc[idx], ref=ref, mp=mp)
-                    pickle.dump(obs, open(path, 'wb'))
-                
-        else:
-            path = path_results.joinpath(f"{alg}_{min_PID}_all.pkl")
-            obs = get_observations_pairwise(dataset, df, res, ref=ref, mp=mp)
-            pickle.dump(obs, open(path, 'wb'))
-
-    elif alg == 'msa':
-        df = load_tunes.load_df_dataset(dataset)
-        obs = get_observations_msa(dataset, df)
-        path = path_results.joinpath(f"{alg}_{min_PID}_all.pkl")
-        pickle.dump(obs, open(path, 'wb'))
-
-    elif alg == 'onset_alignment':
-        df, data = load_tunes.load_data_dataset(dataset)
-        obs = get_observations_onset_alignment(dataset, df, data)
-        path = path_results.joinpath(f"{alg}_{min_PID}_all.pkl")
-        pickle.dump(obs, open(path, 'wb'))
-
-
-
-if __name__ == "__main__":
-
-    get_observations_dataset('thesession', 'pairwise', 0.85, False, True)
 
 
