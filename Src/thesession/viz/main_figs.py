@@ -24,6 +24,8 @@ from thesession.io import savage_loader as savage
 from thesession.io import seq_io
 from thesession.viz import si_figs
 from thesession.analysis import substitution as SM
+from thesession.analysis.evaluation import calculate_actual_rates, get_precision_recall, calculate_average_precision
+from thesession.analysis.substitution import calculate_mutability_and_frequency
 from thesession import utils
 
 
@@ -62,27 +64,6 @@ def plot_roc_curve():
 
     fig.savefig(PATH_FIG.joinpath("fig1_roc.png"), bbox_inches='tight')
     fig.savefig(PATH_FIG.joinpath("fig1_roc.pdf"), bbox_inches='tight')
-
-
-def calculate_actual_rates(data, dataset):
-    tpr = data[f"{dataset}_screened_positives"] / data[f"{dataset}_positives"]
-    fpr = data[f"{dataset}_screened_negatives"] / data[f"{dataset}_negatives"]
-    return tpr, fpr
-
-
-def get_precision_recall(data, dataset):
-    names = ['total', 'positives', 'negatives', 'screened_positives',
-             'screened_negatives']
-    N, Nt, Nf, Mt, Mf = [data[f"{dataset}_{x}"] for x in names]
-    fpr, tpr = data[f"{dataset}_roc"]
-    precision = (tpr * Mt) / (tpr * Mt + fpr * Mf)
-    recall = (tpr * Mt) / Nt
-    return precision, recall
-
-
-def calculate_average_precision(data, dataset):
-    precision, recall = get_precision_recall(data, dataset)
-    return np.sum((recall[1:] - recall[:-1]) * precision[1:])
 
 
 def plot_tune_as_pianoroll(tune, fig='', ax='', meter='', factor=2, max_bar=32):
@@ -207,20 +188,6 @@ def plot_amino_acid_mutability(ax=''):
     ax.set_ylabel("Relative mutability")
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-
-
-### Calculate per-note values of mutability (number of subsitutions / number of observations)
-### and frequency (number of observations)
-def calculate_mutability_and_frequency(mat):
-#   obs = PA.subs_to_observations(res, mismatches, alpha)
-#   mat = SM.convert_observations_to_matrix(obs, True)[1]
-    # Count the diagonal elements, and the sums of the off-diagonals (row-wise)
-    diag = np.diagonal(mat)
-    offdiag = np.sum(mat, axis=0) - diag
-    # Diagonals are counted twice, since they are pairs of the same note
-    frequency = offdiag + 2 * diag
-    mutability = offdiag / frequency
-    return mutability, frequency
 
 
 ### Plot mutability vs frequency overall

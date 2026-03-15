@@ -21,6 +21,7 @@ from thesession.viz import main_figs
 from thesession.io import savage_loader as savage
 from thesession.io import seq_io
 from thesession.analysis import substitution as SM
+from thesession.analysis.substitution import calculate_mutability_and_frequency
 from thesession import utils
 
 
@@ -62,7 +63,7 @@ def plot_mutability_vs_frequency_modes(mode_alg='exact_pent', alpha=0.5, redo=Fa
     for i, mode in enumerate(MODES.keys()):
         path_mat = PATH_FIG_DATA.joinpath(f"submat-{mode_alg}-{mode}.npy")
         mat = np.load(path_mat)[ipid]
-        mutability, frequency = main_figs.calculate_mutability_and_frequency(mat)
+        mutability, frequency = calculate_mutability_and_frequency(mat)
 
         ax[i].plot(frequency, mutability, 'o')
         sns.regplot(x=frequency, y=mutability, logx=True, scatter=False, color='k', ax=ax[i])
@@ -343,7 +344,7 @@ def mutability_vs_prevalence_savage(df):
     fig, ax = plt.subplots(1,2,figsize=(9,4))
     for i, lang in enumerate(languages):
         obs, letters, mat = savage.get_submat(df.loc[df.Language==lang])
-        mutability, frequency = main_figs.calculate_mutability_and_frequency(mat)
+        mutability, frequency = calculate_mutability_and_frequency(mat)
         idx = frequency > 100
         sns.regplot(x=frequency[idx], y=mutability[idx], ax=ax[i])
         ax[i].set_title(lang)

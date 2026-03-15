@@ -202,6 +202,19 @@ def get_substition_distance(msa, gap_max=0.3, obs=None):
 
 
 ######################################################################
+### Calculate per-note mutability and frequency from a substitution matrix
+
+### Count the diagonal elements (same-note pairs) and off-diagonals (substitutions)
+def calculate_mutability_and_frequency(mat):
+    diag = np.diagonal(mat)
+    offdiag = np.sum(mat, axis=0) - diag
+    # Diagonals are counted twice, since they are pairs of the same note
+    frequency = offdiag + 2 * diag
+    mutability = offdiag / frequency
+    return mutability, frequency
+
+
+######################################################################
 ### Process observations
 
 
