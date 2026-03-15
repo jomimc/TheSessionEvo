@@ -1,6 +1,7 @@
 from collections import Counter
+from multiprocessing import Pool
 import pickle
-import shutil 
+import shutil
 from subprocess import Popen, PIPE
 import time
 
@@ -324,6 +325,17 @@ def note_prevalence_mutability_savage(redo=False):
 
 ### Estimate melody key, using different sets of notes:
 ### original note order, the most conserved notes, and the least conserved notes
+def _key_finding_init(res, parts, profiles):
+    global _kf_res, _kf_parts, _kf_profiles
+    _kf_res, _kf_parts, _kf_profiles = res, parts, profiles
+
+
+def _key_finding_worker(args):
+    tune_id, p0, meter = args
+    return KMF.predict_key_family(_kf_res, _kf_parts, _kf_profiles,
+                                  tune_id, p0, meter, factor=4, pid=0.5, nran=10)
+
+
 def note_stability_key_finding(df, tunes, res0, parts_data, pid=0.85, redo=False):
     path = PATH_FIG_DATA.joinpath(f"note_stability_key_finding_{pid:4.2f}.npy")
     pid_list = np.arange(0.5, 1, 0.05)
@@ -351,9 +363,10 @@ def note_stability_key_finding(df, tunes, res0, parts_data, pid=0.85, redo=False
 
         # Evaluate key finding
         meter_list = [meter_key[t] for (t, p) in part_set]
-        correct_key = []
-        for (t, p), m in tqdm(zip(part_set, meter_list), total=len(part_set)):
-            correct_key.append(KMF.predict_key_family(res0, parts_data, mode_profiles, t, p, m, factor=4, pid=0.5, nran=10))
+        args = [(t, p, m) for (t, p), m in zip(part_set, meter_list)]
+        with Pool(N_PROC, initializer=_key_finding_init,
+                  initargs=(res0, parts_data, mode_profiles)) as pool:
+            correct_key = list(tqdm(pool.imap(_key_finding_worker, args), total=len(part_set)))
         correct_key = np.array(correct_key)
         np.save(path, correct_key)
         return correct_key
