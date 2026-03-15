@@ -87,9 +87,10 @@ def process_thesession_tunes_pyabc(df, json_data, redo=False, full=False):
         for i, data in tqdm(zip(df.index, json_data)):
             try:
                 parsed_data = TP.parse_thesession_tune(data)
-                df.loc[i, list(parsed_data.keys())] = list(parsed_data.values())
+                for k, v in parsed_data.items():
+                    df.at[i, k] = v
                 idx_keep.append(i)
-            except:
+            except Exception as e:
                 idx_ignored.append(i)
 
         # Remove indices of tunes that weren't processed
