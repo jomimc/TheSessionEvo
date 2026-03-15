@@ -53,12 +53,12 @@ def empirical_submat(sub_dist_log_odds, diag=6, off_diag=-0.5, nmax=12, noise=0)
     for i, j in product(range(N), range(N)):
         if (i < nmax) and (j < nmax):
             d = abs(i - j)
-            basic[i,j] = min(d, abs(12 - d)) * off_diag
-    np.fill_diagonal(basic, diag)
+            mat[i,j] = min(d, abs(12 - d)) * off_diag
+    np.fill_diagonal(mat, diag)
     if noise > 0:
         # Add a teeny bit of noise
-        basic = basic + (np.random.rand(basic.size) - 0.5).reshape(basic.shape) * noise
-    return basic
+        mat = mat + (np.random.rand(mat.size) - 0.5).reshape(mat.shape) * noise
+    return mat
 
 
 ### Write a substitution matrix in the correct format for mmseqs
@@ -123,7 +123,7 @@ def count_substitutions_from_msa(msa, gap_max=0.3, observations=None):
 
         # Add all of the same-note 'substitutions'
         for k in keys:
-            observations[(k,k)] += comb(count[v], 2)
+            observations[(k,k)] += comb(count[k], 2)
 
         # Add the different-note 'substitutions'
         for i, k1 in enumerate(keys[:-1]):

@@ -42,7 +42,7 @@ def plot_roc_curve():
     for i, name in enumerate(data_names):
         fpr, tpr = data[f"{name}_roc"]
         auc = data[f"{name}_auc"]
-#       tpr2, fpr2 = calculate_actual_rates(data, name)
+        tpr2, fpr2 = calculate_actual_rates(data, name)
 #       ax.plot(fpr, tpr, label=f"{lbls[i]}\nAUC={auc:4.2f}")
 #       tpr3 = data[f"{name}_screened_positives"] * tpr / data[f"{name}_positives"]
         ax.plot(fpr, tpr, label=f"{lbls[i]}\nAUC={auc:4.2f}")

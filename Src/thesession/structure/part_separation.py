@@ -145,7 +145,7 @@ def get_all_parts_thesession(df, tunes, redo=False):
     path_df = PATH_CACHE.joinpath("all_parts_thesession_df.pkl")
     path = PATH_CACHE.joinpath("all_parts_thesession.pkl")
     if all([path_df.exists(), path.exists()]) and not redo:
-        return pickle.load(open(path, 'rb')), pd.read_pickle(path_df)
+        return pd.read_pickle(path_df), pickle.load(open(path, 'rb')), 
     else:
         cols = ["part_id", "tune_id", "setting_id", "part_no", 'num_parts']
         rows = []
@@ -195,7 +195,7 @@ def load_gt_parts(tune_id):
 
 
 ### Evaluate part separation algorithm for a tune family
-def evaluate_nparts(df, tunes, tune_id, cutoff=0.8, verbose=False, min_bars=8):
+def evaluate_nparts(df, tunes, tune_id, cutoff=0.8, min_bars=8):
     setting_list = df.loc[df.tune_id==tune_id, 'setting_id'].values
 
     # Load ground-truth
@@ -218,14 +218,6 @@ def evaluate_nparts(df, tunes, tune_id, cutoff=0.8, verbose=False, min_bars=8):
     # Some tunes have errors. Don't include these in the accuracy calculation
     idx = nparts != 0
     acc = np.mean(nparts[idx] == gt_nparts[idx])
-    if verbose:
-        print(nparts)
-        print(gt_nparts)
-        print(f"Accuracy = {acc}")
-        print(f"Incorrect parts:")
-        for i in range(len(nparts)):
-            if nparts[i] != gt_nparts[i]:
-                print("\t", i, nparts[i], gt_nparts[i], len(dm[to_keep[i]]['bars']) / nparts[i])
     return acc
 
 
