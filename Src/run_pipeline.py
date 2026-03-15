@@ -219,7 +219,7 @@ def run_main_alignments(redo=False):
     # Align parts using new algorithm
     print("Annotating alignments...")
     t0 = time.time()
-    res, res0, mismatches = PA.annotate_res(df, res, parts_data, redo=redo)
+    res, res0, mismatches = PA.annotate_res(df, df_parts, res, parts_data, redo=redo)
     print(f"  Final set: {len(res0)} tune pairs ({time.time()-t0:.1f}s)")
 
     return df, tunes, df_parts, parts_data, res, res0, mismatches

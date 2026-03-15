@@ -46,21 +46,6 @@ def basic_submat_B(diag=6, off_diag=-0.5, nmax=12, noise=0):
     return basic
 
 
-### Mismatch scores depend on substitution distance (semitones)
-def empirical_submat(sub_dist_log_odds, diag=6, off_diag=-0.5, nmax=12, noise=0):
-    N = len(letters)
-    mat = np.zeros((N, N))
-    for i, j in product(range(N), range(N)):
-        if (i < nmax) and (j < nmax):
-            d = abs(i - j)
-            mat[i,j] = min(d, abs(12 - d)) * off_diag
-    np.fill_diagonal(mat, diag)
-    if noise > 0:
-        # Add a teeny bit of noise
-        mat = mat + (np.random.rand(mat.size) - 0.5).reshape(mat.shape) * noise
-    return mat
-
-
 ### Write a substitution matrix in the correct format for mmseqs
 def write_mmseqs_sub_mat(path, submat, nmax=12):
     background = np.zeros(len(letters))
