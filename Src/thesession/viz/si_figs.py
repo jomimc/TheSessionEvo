@@ -54,6 +54,99 @@ def plot_optimization_scores():
 
 
 #######################################################################
+### SI Fig 2 :: Mutability and prevalence by mode
+
+
+def plot_mutability_by_mode(mode_alg='exact_pent', ipid=7):
+    """
+    Four-row panel showing note mutability and prevalence for each mode.
+
+    Each row covers one mode (major, minor, mixolydian, dorian) and
+    contains three panels:
+      - Top-left:    Count (prevalence) bar chart for all 12 chromatic notes.
+      - Bottom-left: Mutability bar chart for all 12 chromatic notes.
+      - Right:       Mutability vs Count scatter with two regression lines —
+                     one for all notes with non-zero count, and one restricted
+                     to the notes that belong to the mode's scale.
+
+    Parameters
+    ----------
+    mode_alg : str, optional
+        Mode-detection algorithm label used in the figure-data filename.
+        Default is ``'exact_pent'``.
+    ipid : int, optional
+        Index into the PID-threshold axis of the saved matrix array.
+        Index 7 corresponds to PID = 0.85.  Default is 7.
+    """
+    mode_list = ['major', 'minor', 'mixolydian', 'dorian']
+
+    fig = plt.figure(figsize=(12, 16))
+    gs = GridSpec(8, 2, figure=fig, wspace=0.35, hspace=1.0)
+
+    X = np.arange(12)
+    lbls = [f'\n{s}' if i % 2 else s for i, s in enumerate(chromatic_notes)]
+    bar_col = sns.color_palette('Paired')[:2][::-1] * 6
+    col_all  = sns.color_palette()[0]
+    col_mode = sns.color_palette()[1]
+
+    for i, mode in enumerate(mode_list):
+        path_mat = PATH_FIG_DATA.joinpath(f"submat-{mode_alg}-{mode}.npy")
+        mat = np.load(path_mat)[ipid]
+        mutability, frequency = calculate_mutability_and_frequency(mat)
+
+        mode_notes = MODES[mode]
+        idx_all = np.isfinite(frequency) & np.isfinite(mutability) & (frequency > 0)
+
+        # --- Count bar chart (top-left) ---
+        ax_count = fig.add_subplot(gs[2 * i, 0])
+        ax_count.bar(X, frequency, 0.8, alpha=0.7, ec='k', color=bar_col)
+        ax_count.set_xticks(X)
+        ax_count.set_xticklabels(lbls)
+        ax_count.set_ylabel("Count")
+        ax_count.set_yscale('log')
+        ax_count.set_title(mode.capitalize())
+        ax_count.text(-0.15, 1.05, 'ABCD'[i], transform=ax_count.transAxes,
+                      fontsize=14, fontweight='bold', va='top')
+
+        # --- Mutability bar chart (bottom-left) ---
+        ax_mut = fig.add_subplot(gs[2 * i + 1, 0])
+        ax_mut.bar(X, mutability, 0.8, alpha=0.7, ec='k', color=bar_col)
+        ax_mut.set_xticks(X)
+        ax_mut.set_xticklabels(lbls)
+        ax_mut.set_ylabel("Mutability")
+
+        # --- Mutability vs Count scatter (right, full row height) ---
+        ax_scat = fig.add_subplot(gs[2 * i:2 * i + 2, 1])
+
+        # All non-zero notes
+        ax_scat.plot(frequency[idx_all], mutability[idx_all], 'o',
+                     color=col_all, alpha=0.7, label='All notes')
+        sns.regplot(x=frequency[idx_all], y=mutability[idx_all],
+                    logx=True, scatter=False, color=col_all, ax=ax_scat)
+
+        # Mode scale notes only
+        idx_mode = mode_notes[np.isfinite(mutability[mode_notes]) &
+                               (frequency[mode_notes] > 0)]
+        ax_scat.plot(frequency[idx_mode], mutability[idx_mode], 'o',
+                     color=col_mode, alpha=0.7, label=f'{mode.capitalize()} scale')
+        sns.regplot(x=frequency[idx_mode], y=mutability[idx_mode],
+                    logx=True, scatter=False, color=col_mode, ax=ax_scat)
+
+        ax_scat.set_xlabel("Count")
+        ax_scat.set_ylabel("Mutability")
+        ax_scat.set_xscale('log')
+        ax_scat.set_title(mode.capitalize())
+        ax_scat.legend(loc='best', frameon=False)
+
+        for a in [ax_count, ax_mut, ax_scat]:
+            a.spines['right'].set_visible(False)
+            a.spines['top'].set_visible(False)
+
+    fig.savefig(PATH_FIG.joinpath("si2_mutability_by_mode.png"), bbox_inches='tight')
+    fig.savefig(PATH_FIG.joinpath("si2_mutability_by_mode.pdf"), bbox_inches='tight')
+
+
+#######################################################################
 ### Fig X :: Savage correct substitution matrix
 
 def plot_savage_submat(letters, mat):
