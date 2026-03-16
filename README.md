@@ -72,9 +72,9 @@ MMseqs/                       # MMseqs2 FASTA inputs and result tables
 
 Input data are drawn from three sources:
 
-- **TheSession** — Irish/Celtic tunes in ABC notation. \[https://github.com/adactio/TheSession-data\]
-- **Meertens Tune Collections** — Dutch folk music collection. \[https://www.liederenbank.nl/mtc/\]
-- **Savage et al.** — Manually-aligned melody pairs from the Bronson ballad collection. \[https://github.com/pesavage/melodic-evolution/tree/master/data\]
+- **TheSession** — Irish/Celtic tunes in ABC notation. \[https://github.com/adactio/TheSession-data \]
+- **Meertens Tune Collections** — Dutch folk music collection. \[https://www.liederenbank.nl/mtc \]
+- **Savage et al.** — Manually-aligned melody pairs from the Bronson ballad collection. \[https://github.com/pesavage/melodic-evolution/tree/master/data \]
 
 Raw data paths are configured in `Src/thesession/config.py`.
 
