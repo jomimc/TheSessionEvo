@@ -187,6 +187,12 @@ def explore_parameter_space(df, dataset='thesession_tunes'):
                     if len(stderr) == 0:
                         # Parse the MMseqs2 hit table and label each pair by family membership
                         res = pd.read_csv(path_mmseqs, sep='\t')
+                        # Remove self-hits
+                        res = res.loc[res['query'] != res['target']]
+                        # Remove reverse duplicates: keep only one of (A, B) and (B, A)
+                        pairs = res[['query', 'target']].values
+                        df_sort = pd.DataFrame(np.sort(pairs, axis=1), columns=['a', 'b'])
+                        res = res.loc[df_sort.duplicated().values == False]
                         res = seq_io.annotate_alignment(res, families, family_key)
 
                         # Compute ROC curve and screened-pair counts using fident as score
@@ -246,7 +252,8 @@ def get_total_positives(df, dataset, x='tune_id', fig_data={}):
     the all-vs-all search space that MMseqs2 explores.  Negatives are
     defined as the complement: ``total - positives``.
     """
-    total = len(df)**2
+    N = len(df)
+    total = N * (N - 1) / 2
     # Sum n*(n-1)/2 over every family to get the total within-family (positive) pair count
     positives = np.sum([n * (n - 1) / 2 for n in df[x].value_counts().values])
     negatives = total - positives

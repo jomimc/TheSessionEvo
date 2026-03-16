@@ -21,8 +21,36 @@ from thesession.viz import main_figs
 from thesession.io import savage_loader as savage
 from thesession.io import seq_io
 from thesession.analysis import substitution as SM
+from thesession.analysis.optimization import load_results_mmseqs
 from thesession.analysis.substitution import calculate_mutability_and_frequency
 from thesession import utils
+
+
+#######################################################################
+### Fig 1 :: sequence alignment score optimization
+
+
+def plot_optimization_scores():
+    df = load_results_mmseqs()
+    fig, ax = plt.subplots(1,2,figsize=(9,4))
+    df['mat_type'] = df['mat_type'].map({'A':'equal mismatch', 'B':'linear mismatch'})
+
+    sns.stripplot(x='mat_type', y='auc', data=dfr, hue='mat_type', ax=ax[1])
+    ax[0].set_xlabel("Substitution Matrix")
+    ax[0].set_ylabel("ROC AUC")
+
+    sns.scatterplot(x='actual_fpr', y='actual_tpr', data=dfr, hue='mat_type', ax=ax[1])
+    ax[1].set_xlabel("Actual False Positive Rate")
+    ax[1].set_ylabel("Actual True Positive Rate")
+    ax[1].legend(loc='best', frameon=False)
+
+    for a in ax:
+        a.spines['right'].set_visible(False)
+        a.spines['top'].set_visible(False)
+
+    fig.savefig(PATH_FIG.joinpath("si1_roc.png"), bbox_inches='tight')
+    fig.savefig(PATH_FIG.joinpath("si1_roc.pdf"), bbox_inches='tight')
+    
 
 
 #######################################################################

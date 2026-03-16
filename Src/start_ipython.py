@@ -6,10 +6,8 @@ from thesession.alignment import pairwise as seq_align
 from thesession.io import savage_loader as savage
 from thesession.viz import main_figs, si_figs
 from thesession import utils
-import plots
 import run_pipeline as run_main
 from thesession.analysis import substitution as SM
-from thesession.alignment import onset as OA
 from thesession.analysis import optimization as OP
 from thesession.io import tune_parser as TP
 from thesession.alignment import parts as PA

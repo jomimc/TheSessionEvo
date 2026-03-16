@@ -161,7 +161,7 @@ def load_mmseqs(df, dataset, ref='setting_id', redo=False, annotate=True, save_f
 ### Runs mmseqs on tune collections (fasta file)
 ### Loads mmseqs results and calculates roc curves and auc
 ### Saves data in the format needed for figures
-def data_for_fig1(redo=False):
+def data_for_fig1(redo=True):
     """
     Produce ROC-curve data for Figure 1 (tune-family identification).
 

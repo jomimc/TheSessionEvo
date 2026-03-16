@@ -121,16 +121,6 @@ def fig2():
 
     fig = plt.figure(figsize=(12,8))
     fig.subplots_adjust(wspace=9.0, hspace=0.5)
-#   gs = GridSpec(4,15, height_ratios=[1,1,.1,2])
-#   ax = [fig.add_subplot(gs[:2,:5]),
-#         fig.add_subplot(gs[0,6:9]), fig.add_subplot(gs[1,6:9]),
-#         fig.add_subplot(gs[:2,10:]), fig.add_subplot(gs[0,13:]),
-#         fig.add_subplot(gs[3,:5]), fig.add_subplot(gs[3,7:12])]
-#   gs = GridSpec(5,17, height_ratios=[1,1,.1,1,1])
-#   ax = [fig.add_subplot(gs[:2,:8]),
-#         fig.add_subplot(gs[0,9:]), fig.add_subplot(gs[1,9:]),
-#         fig.add_subplot(gs[3:,:8]), fig.add_subplot(gs[3,5:8]),
-#         fig.add_subplot(gs[3:,9:])]
     gs = GridSpec(5,17, height_ratios=[1,1,.1,1,1])
     ax = [fig.add_subplot(gs[:2,:8]),
           fig.add_subplot(gs[3,:8]), fig.add_subplot(gs[4,:8]),
@@ -142,22 +132,6 @@ def fig2():
     plot_sub_mat_modes_corr(mode_alg='exact_pent', alpha=0.5,
                             redo=False, ipid=7, ax=ax[4])
     plot_key_finding(ax=ax[5])
-#   ax[0].set_title('Amino Acid Mutability/Prevalence', loc='left')
-#   ax[1].set_title('Note Mutability/Prevalence', loc='left')
-#   ax[3].set_title('Note Mutability/Prevalence', loc='left')
-#   ax[5].set_title('Conserved notes are good for key finding', loc='left')
-#   ax[6].set_title('Knowing the key facilitates recognition and reduces complexity', loc='left')
-    # And here... last plot
-    # Calculate AUC for tune recognition with and without transposition,
-    # and calculate information content using three models:
-    # midi, tchroma, tchroma + mode
-
-
-#   fs = 16
-#   xi = [-0.15, -0.25, -0.25, 0, -0.15, -0.15]
-#   yi = [1.03, 1.05, 1.05, 1.03, 1.03, 1.03]
-#   for i, a, x, y in zip([0, 1, 3, 5], 'ACBD', xi, yi):
-#       ax[i].text(-0.1, 1.03, a, transform=ax[i].transAxes, fontsize=fs)
 
     fig.savefig(PATH_FIG.joinpath("fig2.png"), bbox_inches='tight')
     fig.savefig(PATH_FIG.joinpath("fig2.pdf"), bbox_inches='tight')
@@ -294,12 +268,11 @@ def plot_sub_mat_modes_corr(mode_alg='exact_pent', alpha=0.5, redo=False, ipid=7
     print(np.round(false_discovery_control(c[~np.isnan(c)]), 3))
 
     
-def plot_key_finding(ax='', pid=0.5):
+def plot_key_finding(ax='', pid=0.85):
     if isinstance(ax, str):
         fig, ax = plt.subplots()
     path = PATH_FIG_DATA.joinpath(f"note_stability_key_finding_{pid:4.2f}.npy")
     data = np.load(path)
-#   N_arr = np.arange(5, 55, 5)
     N_arr = np.concatenate([np.arange(2, 10, 2), np.arange(10, 55, 5)])
     lbls = ['First Notes', 'Most Conserved Notes', 'Least Conserved Notes']
     col = ['k'] + sns.color_palette()[:2]
@@ -436,11 +409,8 @@ def plot_submat_graph(letters, mat, norm=True, ax='', prune=0.001, edge='rel', c
     if not isinstance(mode, type(None)):
         nodelist = order[mode]
         lbls = {i:chromatic_notes[j] for i, j in zip(nodelist, mode)}
-#       lbls = {i:l if (i-4)%12 in order else "" for i, l in enumerate(lbls)}
-#       lbls = {i:l for i, l in zip(order, chromatic_notes[mode])}
     else:
         nodelist = order.copy()
-    print(lbls)
 
     pos = nx.circular_layout(G)
     nx.draw_networkx_nodes(G, pos, node_size=500, node_color='skyblue', ax=ax,
@@ -448,11 +418,6 @@ def plot_submat_graph(letters, mat, norm=True, ax='', prune=0.001, edge='rel', c
     nx.draw_networkx_edges(G, pos, edge_color=col, arrows=True,
                            width=edge_weights, arrowstyle='-', min_source_margin=10,
                            min_target_margin=10, ax=ax)
-
-
-#       out_of_scale = [i for i in range(12) if i not in mode]
-#       nx.draw_networkx_nodes(G, pos, nodelist=out_of_scale, node_size=500,
-#                              node_color='white', ax=ax, edgecolors='white', alpha=0)
 
     nx.draw_networkx_labels(G, pos, lbls, ax=ax)
 
@@ -524,28 +489,14 @@ def plot_sub_dist_both(ax=''):
 ### Fig 4 :: Position dependence (Site)
 
 def fig4(ipid=7, alpha=0.5):
-    # A: GFP position conservation (highlight chromophore / function)
-    # B: GFP covariance matrix
-    # C: GFP contact map
-    # D: Rate vs meter (position in measure)
-    # E: Rate vs metrical hierarchy
-    # F: Rate vs prevalence
-    # G: Rate vs hypermeter
-    # H: position covariance
-    # I: repetition matrix
-
     fig = plt.figure(figsize=(11,6))
     fig.subplots_adjust(wspace=0.3, hspace=0.6)
-#   gs = GridSpec(6,3, width_ratios=[1.3, 1, 1.3])
-#   ax = [fig.add_subplot(gs[i*3:(i+1)*3,j]) for j in range(2) for i in range(2)] + \
-#        [fig.add_subplot(gs[1:5,2])]
     gs = GridSpec(2,2, width_ratios=[1.5, 1])
     ax = [fig.add_subplot(gs[i,j]) for j in range(2) for i in range(2)]
 
     plot_bar_pos_sub_rate(ipid, alpha, ax=ax[:2])
     plot_bar_pos_rate_vs_hierarchy(ipid, ax=ax[2])
     plot_bar_pos_rate_vs_stability(ipid, ax=ax[3])
-#   plot_bar_sub_rate(ipid, alpha,  ax=ax[4])
 
     fs = 16
     for i, a in enumerate('ABCD'):
@@ -651,8 +602,6 @@ def plot_bar_pos_rate_vs_stability(ipid=7, ax=''):
 
 
 def fig5(ipid=7, alpha=0.5):
-    # H: position covariance
-    # I: repetition matrix
 #   tunes = [(222, 0), (71, 0), (208, 0)]
 
     fig = plt.figure(figsize=(12,6))
@@ -732,7 +681,6 @@ def plot_melody_structure(cov, d=2, alg='mds'):
 
     sm = ScalarMappable(norm=norm, cmap=cmap)
 
-#   im = ax.scatter(*coords, c=np.arange(coords.shape[1])//8, s=80, edgecolors='k', cmap=cmap)
     im = ax.scatter(*coords, c=c, s=80, edgecolors='k', cmap=cmap)
     cbar = plt.colorbar(sm, ax=ax, boundaries=bounds, ticks=bounds[:-1]+0.5, orientation='vertical')
     cbar.set_ticklabels([f"{i}" for i in range(1, 9)])
