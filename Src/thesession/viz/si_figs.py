@@ -147,75 +147,26 @@ def plot_mutability_by_mode(mode_alg='exact_pent', ipid=7):
 
 
 #######################################################################
-### Fig X :: Savage correct substitution matrix
-
-def plot_savage_submat(letters, mat):
-    fig, ax = plt.subplots(1,3,figsize=(12,4))
-
-    # Observations
-#   plots.plot_submat(letters, mat, ax=ax[0])
-#   plots.plot_submat_graph(letters, mat, ax=ax[0], norm=False)
-
-    # Outer product
-    diag = np.diagonal(mat)
-    offdiag = np.sum(mat, axis=0) - diag
-    frequency = offdiag + 2 * diag
-    outer = np.outer(frequency, frequency) * 0.1
-    np.fill_diagonal(outer, np.diagonal(outer) + 0.9 * diag)
-#   plots.plot_submat(letters, outer, ax=ax[1])
-#   plots.plot_submat_graph(letters, outer, ax=ax[1], norm=False)
-
-    # Log-odds
-#   mat = SM.obs_mat_to_log_odds(mat)
-#   plots.plot_submat(letters, mat, ax=ax[2])
-#   plots.plot_submat_graph(letters, mat, ax=ax[2], norm=True)
+### SI Fig 3 :: Overall substitution graph (TheSession tune parts)
 
 
-#######################################################################
-### Fig X :: Mutability vs Prevalence by mode
+def plot_submat_overall(prune=0.01, ipid=7):
+    """
+    Unnormalized and normalized substitution graphs for TheSession tune
+    parts, pooled across all modes.
 
+    Parameters
+    ----------
+    prune : float, optional
+        Notes with a marginal frequency below this threshold are suppressed.
+        Default is 0.01.
+    ipid : int, optional
+        Index into the PID-threshold axis of the saved matrix array.
+        Index 7 corresponds to PID = 0.85.  Default is 7.
+    """
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    fig.subplots_adjust(wspace=0.3)
 
-
-def plot_mutability_vs_frequency_modes(mode_alg='exact_pent', alpha=0.5, redo=False, ipid=7, ax=''):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(2,4,figsize=(12,6))
-        ax = ax.reshape(ax.size)
-
-    for i, mode in enumerate(MODES.keys()):
-        path_mat = PATH_FIG_DATA.joinpath(f"submat-{mode_alg}-{mode}.npy")
-        mat = np.load(path_mat)[ipid]
-        mutability, frequency = calculate_mutability_and_frequency(mat)
-
-        ax[i].plot(frequency, mutability, 'o')
-        sns.regplot(x=frequency, y=mutability, logx=True, scatter=False, color='k', ax=ax[i])
-        ax[i].set_title(mode)
-
-        idx = np.argsort(frequency)[-7:]
-        ax[i+4].plot(frequency[idx], mutability[idx], 'o')
-        sns.regplot(x=frequency[idx], y=mutability[idx], logx=True, scatter=False, color='k', ax=ax[i+4])
-        print(frequency)
-
-
-    for a in ax:
-        a.set_xlabel("Count")
-        a.set_ylabel("Mutability")
-        a.set_xscale('log')
-        a.spines['right'].set_visible(False)
-        a.spines['top'].set_visible(False)
-#   ax.set_xticks([0,1])
-#   ax.set_xticklabels(["All\nNotes", "Within\nScale"])
-
-#   ax.set_yticks(np.arange(5))
-#   ax.set_yticklabels(["overall"] + list(MODES.keys()))
-
-
-#######################################################################
-### Fig X :: TheSession substittuion matrix (all tunes)
-
-
-def plot_submat_graph_overall(ax='', prune=0.01, ipid=7):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(1,2,figsize=(8,4))
     path_mat = PATH_FIG_DATA.joinpath(f"submat-all.npy")
     mat = np.load(path_mat)[ipid]
     letters = np.arange(12)
@@ -224,6 +175,14 @@ def plot_submat_graph_overall(ax='', prune=0.01, ipid=7):
     main_figs.plot_submat_graph(letters, mat, ax=ax[1], norm=True, prune=prune)
     ax[0].set_title("Absolute Rate")
     ax[1].set_title("Normalized Rate")
+
+    for a, lbl in zip(ax, 'AB'):
+        a.text(-0.10, 1.00, lbl, transform=a.transAxes, fontsize=16, fontweight='bold')
+
+    fig.savefig(PATH_FIG.joinpath("si3_submat_overall.png"), bbox_inches='tight')
+    fig.savefig(PATH_FIG.joinpath("si3_submat_overall.pdf"), bbox_inches='tight')
+
+
 
     
 #######################################################################
