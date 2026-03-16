@@ -71,7 +71,8 @@ def get_precision_recall(data, dataset):
 
     # Convert ROC rates back to absolute TP/FP counts using the screened set
     # sizes, then form the precision and recall at each threshold point
-    precision = (tpr * Mt) / (tpr * Mt + fpr * Mf)
+    denom = tpr * Mt + fpr * Mf
+    precision = np.divide(tpr * Mt, denom, out=np.zeros_like(tpr), where=denom > 0)
     recall = (tpr * Mt) / Nt
     return precision, recall
 

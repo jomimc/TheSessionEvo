@@ -197,6 +197,7 @@ def generate_all_sub_mat():
     - Type B: diagonal in {1, 2, 3, 4, 5}, per-semitone cost in [-1, 0) step 0.2
     """
     path_base = PATH_MMSEQS.joinpath("substitution_matrices")
+    path_base.mkdir(parents=True, exist_ok=True)
     diag_arr = np.arange(2, 12, 2)
 
     ### First, generate type A, where off-diagonal is constant

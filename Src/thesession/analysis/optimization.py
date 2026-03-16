@@ -142,6 +142,7 @@ def explore_parameter_space(df, dataset='thesession_tunes'):
     path_fasta = path_base.joinpath(f"all_seq_{dataset}.fasta")
     # MMseqs2 writes its raw hit table here; overwritten on every run
     path_mmseqs = PATH_MMSEQS.joinpath("tmp", "result.m8")
+    path_mmseqs.parent.mkdir(parents=True, exist_ok=True)
 
     # Collect all candidate substitution matrices; sort for reproducible ordering
     path_submat_list = sorted(PATH_MMSEQS.joinpath("substitution_matrices").glob("*.out"))
@@ -377,7 +378,8 @@ def get_precision_recall(data):
 
     # Convert ROC rates back to absolute TP/FP counts using the screened set
     # sizes, then form precision and recall at each threshold point
-    precision = (tpr * Mt) / (tpr * Mt + fpr * Mf)
+    denom = tpr * Mt + fpr * Mf
+    precision = np.divide(tpr * Mt, denom, out=np.zeros_like(tpr), where=denom > 0)
     recall = (tpr * Mt) / Nt
     return precision, recall
 

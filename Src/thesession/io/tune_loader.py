@@ -16,6 +16,37 @@ from thesession import utils
 ### thesession data
 
 
+def load_thesession_tunes(redo=False):
+    """
+    Load the filtered TheSession tune-level dataset used for ROC curve
+    analysis and parameter optimisation.
+
+    Builds on the full pyabc-parsed dataset (``thesession_full.pkl``) and
+    applies a post-hoc filter that removes tunes with grace notes,
+    polyphonic pitch, or multiple voices.  The result is cached as
+    ``thesession_tunes.pkl``.
+
+    Parameters
+    ----------
+    redo : bool, optional
+        If ``True``, ignore the cache and reprocess from scratch.
+        Default is ``False``.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        Filtered tune-level metadata table.
+    """
+    path = PATH_CACHE.joinpath("thesession_tunes.pkl")
+    if path.exists() and not redo:
+        return pd.read_pickle(path)
+    df, json_data = load_thesession_data_raw()
+    df = process_thesession_tunes_pyabc(df, json_data, full=True)
+    df = df.loc[~(df.has_grace | df.has_poly | df.has_voices)]
+    df.to_pickle(path)
+    return df
+
+
 ### Main function to load thesession data
 ### Runs preliminary pipeline if there is no cached data,
 ### or if redo=True

@@ -20,6 +20,7 @@ from thesession.structure import part_separation as PS
 from thesession.io import savage_loader as savage
 from thesession.io import seq_io
 from thesession.analysis import substitution as SM
+from thesession.analysis import optimization as OPT
 from thesession import utils
 
 
@@ -152,6 +153,42 @@ def load_mmseqs(df, dataset, ref='setting_id', redo=False, annotate=True, save_f
 
 
 ###################################################################################################
+### PARAMETER OPTIMISATION
+
+
+def run_parameter_optimization(redo=False):
+    """
+    Generate substitution matrices (if needed) and run MMseqs2 grid-search
+    parameter optimisation for all three datasets.
+
+    Calls ``SM.generate_all_sub_mat`` to write substitution matrix files,
+    then calls ``optimization.explore_parameter_space`` for TheSession tunes,
+    Meertens, and Savage et al. (English), using the same DataFrames that
+    are used for Figure 1.
+
+    Parameters
+    ----------
+    redo : bool, optional
+        Passed to the data-loading functions.  Default is ``False``.
+    """
+    # Generate substitution matrices if they don't exist yet (or on redo)
+    path_submat = PATH_MMSEQS.joinpath("substitution_matrices")
+    if redo or not any(path_submat.glob("*.out")):
+        print("Generating substitution matrices...")
+        SM.generate_all_sub_mat()
+
+    df = load_tunes.load_thesession_tunes(redo=redo)
+    OPT.explore_parameter_space(df, 'thesession_tunes')
+
+    df = load_tunes.load_meertens_data(redo=redo)[0]
+    OPT.explore_parameter_space(df, 'meertens')
+
+    df = savage.load_savage_df(full=True, redo=redo)
+    df = df.loc[df.Language == 'English']
+    OPT.explore_parameter_space(df, 'savage_english')
+
+
+###################################################################################################
 ### IDENTIFYING SIMILAR TUNES (Fig. 1A)
 
 ### Runs on: TheSession, Meertens, Savage et al. (English)
@@ -161,7 +198,7 @@ def load_mmseqs(df, dataset, ref='setting_id', redo=False, annotate=True, save_f
 ### Runs mmseqs on tune collections (fasta file)
 ### Loads mmseqs results and calculates roc curves and auc
 ### Saves data in the format needed for figures
-def data_for_fig1(redo=True):
+def data_for_fig1(redo=False):
     """
     Produce ROC-curve data for Figure 1 (tune-family identification).
 
@@ -194,19 +231,7 @@ def data_for_fig1(redo=True):
 
     ### TheSession
     print("Running on TheSession data")
-
-    # Load the full TheSession dataset
-    path = PATH_CACHE.joinpath("thesession_tunes.pkl")
-    if path.exists() and not redo:
-        df = pd.read_pickle(path)
-    else:
-        df, json_data = load_tunes.load_thesession_data_raw()
-        df = load_tunes.process_thesession_tunes_pyabc(df, json_data, full=True)
-        df.to_pickle(path)
-
-    # Exclude tunes with grace notes, polyphonic pitch, or multiple voices
-    # (not considering repeat consistency)
-    df = df.loc[~(df.has_grace | df.has_poly | df.has_voices)]
+    df = load_tunes.load_thesession_tunes(redo=redo)
 
     # First time this will run and load mmseqs results
     # second time onwards will just load mmseqs results, if 'redo' is not set to True
@@ -1801,7 +1826,14 @@ def main(redo=False):
     -------
     None
     """
-    print("=== Fig 1: Identifying similar tunes ===")
+    # Ensure top-level output directories exist
+    for path in [PATH_MMSEQS, PATH_CACHE, PATH_FIG, PATH_FIG_DATA]:
+        path.mkdir(parents=True, exist_ok=True)
+
+    print("=== Parameter optimisation ===")
+    run_parameter_optimization(redo=redo)
+
+    print("\n=== Fig 1: Identifying similar tunes ===")
     data_for_fig1(redo=redo)
 
     print("\n=== Running main alignments ===")
