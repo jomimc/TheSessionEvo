@@ -30,16 +30,16 @@ from thesession import utils
 ### Fig 1 :: sequence alignment score optimization
 
 
-def plot_optimization_scores():
-    df = load_results_mmseqs()
+def plot_optimization_scores(df):
+#   df = load_results_mmseqs()
     fig, ax = plt.subplots(1,2,figsize=(9,4))
-    df['mat_type'] = df['mat_type'].map({'A':'equal mismatch', 'B':'linear mismatch'})
+#   df['mat_type'] = df['mat_type'].map({'A':'equal mismatch', 'B':'linear mismatch'})
 
-    sns.stripplot(x='mat_type', y='auc', data=dfr, hue='mat_type', ax=ax[1])
+    sns.stripplot(x='mat_type', y='auc', data=df, hue='mat_type', ax=ax[0])
     ax[0].set_xlabel("Substitution Matrix")
     ax[0].set_ylabel("ROC AUC")
 
-    sns.scatterplot(x='actual_fpr', y='actual_tpr', data=dfr, hue='mat_type', ax=ax[1])
+    sns.scatterplot(x='actual_fpr', y='actual_tpr', data=df, hue='mat_type', ax=ax[1])
     ax[1].set_xlabel("Actual False Positive Rate")
     ax[1].set_ylabel("Actual True Positive Rate")
     ax[1].legend(loc='best', frameon=False)
@@ -334,40 +334,39 @@ def plot_bar_pos_sub_rate_meters_dances(ipid=7):
 
 
 #######################################################################
-### Fig X :: bar pos rate vs dance type
-
-        
-def plot_bar_pos_rate_dance(ipid=7):
-    fig, ax = plt.subplots(2,2)
-    ax = ax.reshape(ax.size)
-    col = np.array(sns.color_palette("mako", n_colors=4))
-    for i, dance in enumerate(DANCE_LIST):
-        path = PATH_FIG_DATA.joinpath(f"bar_pos_rate-{dance}.npy")
-        rate = np.load(path)[ipid]
-        X = np.linspace(0, 1, SUBDIV_DANCE[dance] + 1)[:-1]
-        width = 1 / SUBDIV_DANCE[dance] / 1.5
-        ax[i].bar(X, rate[0], width, color=col[HIERARCHY_DANCE[dance]], alpha=0.7, ec='k')
-        # Manually add whiskers for confidence intervals
-        for j in range(SUBDIV_DANCE[dance]):
-            ax[i].plot([X[j]]*2, [rate[2,j], rate[3,j]], '-', color='grey')
-        ax[i].set_title(dance)
+### SI Fig 6 :: Covariance and repetition for all meters
 
 
-def plot_bar_pos_rate_meter(ipid=7):
-    fig, ax = plt.subplots(2,3)
-    ax = ax.reshape(ax.size)
+def plot_cov_rep_all_meters(nbars=8):
+    """
+    Position-position covariance (top row) and repetition covariance
+    (bottom row) for all meters in METER_LIST.
 
-    col = np.array(sns.color_palette("mako", n_colors=4))
-    for i, meter in enumerate(METER_LIST):
-        path = PATH_FIG_DATA.joinpath(f"bar_pos_rate-{meter.replace('/', '_')}.npy")
-        rate = np.load(path)[ipid]
-        X = np.linspace(0, 1, SUBDIV_METER[meter] + 1)[:-1]
-        width = 1 / SUBDIV_METER[meter] / 1.5
-        ax[i].bar(X, rate[0], width, color=col[HIERARCHY[meter]], alpha=0.7, ec='k')
-        # Manually add whiskers for confidence intervals
-        for j in range(SUBDIV_METER[meter]):
-            ax[i].plot([X[j]]*2, [rate[2,j], rate[3,j]], '-', color='grey')
-        ax[i].set_title(meter)
+    Each column corresponds to one meter.  Panels are produced using
+    ``main_figs.plot_cov_mat`` with the precomputed
+    ``part_cov-<meter>.npy`` files.
+
+    Parameters
+    ----------
+    nbars : int, optional
+        Number of bar tick labels to display on each axis.  Default is 8.
+    """
+    fig = plt.figure(figsize=(18, 7))
+    gs = GridSpec(2, 5, figure=fig, hspace=0.5, wspace=0.6)
+
+    row_labels = ['Covariance', 'Repetition covariance']
+
+    for col, meter in enumerate(METER_LIST):
+        path = PATH_FIG_DATA.joinpath(f"part_cov-{meter.replace('/', '_')}.npy")
+        cov, rep = np.load(path)
+        for row, (mat, lbl) in enumerate(zip([cov, rep], row_labels)):
+            ax = fig.add_subplot(gs[row, col])
+            main_figs.plot_cov_mat(fig, ax, mat, nbars=nbars, cbar_lbl=lbl)
+            if row == 0:
+                ax.set_title(f"Meter: {meter}")
+
+    fig.savefig(PATH_FIG.joinpath("si6_cov_rep_all_meters.png"), bbox_inches='tight')
+    fig.savefig(PATH_FIG.joinpath("si6_cov_rep_all_meters.pdf"), bbox_inches='tight')
 
 
 def load_hierachy_stability_df(ipid=7):
