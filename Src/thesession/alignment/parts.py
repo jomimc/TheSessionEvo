@@ -577,13 +577,14 @@ def get_mint_dist(tunes):
     differences of the MIDI pitch sequence across all tunes.
     """
     X = np.arange(1, 18)
-    count = {x: 0 for x in X}
+    tune_dists = []
     for d in tunes.values():
         C = Counter(np.abs(np.diff(d['tmidi'])))
-        for k in count.keys():
-            count[k] += C.get(k, 0)
-    Y = np.array([count.get(x, 0) for x in X])
-    Y = Y / Y.sum()
+        counts = np.array([C.get(x, 0) for x in X], dtype=float)
+        total = counts.sum()
+        if total > 0:
+            tune_dists.append(counts / total)
+    Y = np.mean(tune_dists, axis=0)
     return X, Y
 
 

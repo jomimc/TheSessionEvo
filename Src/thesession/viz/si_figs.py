@@ -30,21 +30,44 @@ from thesession import utils
 ### Fig 1 :: sequence alignment score optimization
 
 
-def plot_optimization_scores(df):
-#   df = load_results_mmseqs()
-    fig, ax = plt.subplots(1,2,figsize=(9,4))
-#   df['mat_type'] = df['mat_type'].map({'A':'equal mismatch', 'B':'linear mismatch'})
+def plot_optimization_scores():
+    fig, ax = plt.subplots(3,3,figsize=(12,12))
+    fig.subplots_adjust(hspace=0.8, wspace=0.5)
+    datasets = ['thesession_tunes', 'meertens', 'savage_english']
+    ttls = ['TheSession', 'Meertens', 'British/American']
+    xlbls = ['equal\nmismatch', 'linear\nmismatch', 'chosen\nscore']
+    for i, dataset in enumerate(datasets):
+        df = load_results_mmseqs(dataset)
+        idx = (df.gap_open==4)&(df.gap_extend==3)&(df.mat_type=='A')&(df.diag=='6')&(df.off_diag=='-4')
 
-    sns.stripplot(x='mat_type', y='auc', data=df, hue='mat_type', ax=ax[0])
-    ax[0].set_xlabel("Substitution Matrix")
-    ax[0].set_ylabel("ROC AUC")
+        df['mat_type'] = df['mat_type'].map({'A':'equal mismatch', 'B':'linear mismatch'})
 
-    sns.scatterplot(x='actual_fpr', y='actual_tpr', data=df, hue='mat_type', ax=ax[1])
-    ax[1].set_xlabel("Actual False Positive Rate")
-    ax[1].set_ylabel("Actual True Positive Rate")
-    ax[1].legend(loc='best', frameon=False)
+        sns.stripplot(x='mat_type', y='auc', data=df, hue='mat_type', ax=ax[i,0])
+        ax[i,0].plot([2], df.loc[idx]['auc'].values, 'ok', ms=6, label='chosen score')
+        ax[i,0].set_xlabel("Substitution Matrix")
+        ax[i,0].set_ylabel("ROC AUC")
+        ax[i,0].set_xticks(range(3))
+        ax[i,0].set_xticklabels(xlbls)
 
-    for a in ax:
+        sns.scatterplot(x='actual_fpr', y='actual_tpr', data=df.loc[df['mat_type']=='linear mismatch'],
+                        color='grey', ax=ax[i,1], s=10, label='linear mismatch')
+        sns.scatterplot(x='actual_fpr', y='actual_tpr', data=df.loc[df['mat_type']=='equal mismatch'],
+                        color=sns.color_palette()[0], ax=ax[i,1], s=10, label='equal mismatch')
+
+        sns.scatterplot(x='actual_fpr', y='actual_tpr', data=df.loc[df['mat_type']=='equal mismatch'],
+                        color='grey', ax=ax[i,2], s=10, label='equal mismatch')
+        sns.scatterplot(x='actual_fpr', y='actual_tpr', data=df.loc[df['mat_type']=='linear mismatch'],
+                        color=sns.color_palette()[1], ax=ax[i,2], s=10, label='linear mismatch')
+
+        for j in [1,2]:
+            sns.scatterplot(x='actual_fpr', y='actual_tpr', data=df.loc[idx],
+                            color='k', ax=ax[i,j], s=20, label='chosen score')
+            ax[i,j].set_xlabel("Actual False Positive Rate")
+            ax[i,j].set_ylabel("Actual True Positive Rate")
+            ax[i,j].legend(loc='best', frameon=False)
+        ax[i,0].set_title(ttls[i], loc='left')
+
+    for a in ax.ravel():
         a.spines['right'].set_visible(False)
         a.spines['top'].set_visible(False)
 

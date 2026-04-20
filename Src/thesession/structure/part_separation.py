@@ -190,10 +190,6 @@ def separate_tune_into_parts(tmidi, dur, cutoff=0.8, min_bars=8):
     at that time point.  The fraction of grid cells where both parts share
     the same chroma class is the similarity score.
 
-    The ``% 12`` operation that reduces MIDI pitch to chroma class is applied
-    inside the loop rather than at the call site so that the original
-    ``tmidi`` arrays are not mutated.
-
     For slides, ``min_bars`` should be set to ``4`` rather than the default
     ``8``.
     """
@@ -216,8 +212,8 @@ def separate_tune_into_parts(tmidi, dur, cutoff=0.8, min_bars=8):
 
         # Build time-expanded chroma grids: each note occupies (dur * factor)
         # consecutive cells, so the arrays have commensurate length for comparison
-        tc_grid1 = utils.get_tchroma_grid(parts_init[i][1] % 12, parts_init[i][0], factor)
-        tc_grid2 = utils.get_tchroma_grid(parts_init[i+1][1] % 12, parts_init[i+1][0], factor)
+        tc_grid1 = utils.get_tchroma_grid(parts_init[i][1], parts_init[i][0], factor)
+        tc_grid2 = utils.get_tchroma_grid(parts_init[i+1][1], parts_init[i+1][0], factor)
         # Fraction of time-grid positions where both parts share the same chroma class
         part_similarity[i] = np.mean(tc_grid1 == tc_grid2)
 

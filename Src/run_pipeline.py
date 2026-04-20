@@ -1643,12 +1643,14 @@ def data_for_fig5(res0, parts_data, redo=False):
     None
     """
     print("Computing covariance matrices...")
-    part_covariance(res0, parts_data, alpha=0.5, redo=redo)
+    part_covariance(res0, parts_data, alpha=0.5, redo=redo,
+                    extra_pairs=[(2,4)])
 
 
 ### Get the covariance matrices for sets of tunes grouped by meter,
 ### and for a few tune families
-def part_covariance(res, parts_data, factor0=2, nbars=8, alpha=0.5, redo=False):
+def part_covariance(res, parts_data, factor0=2, nbars=8, alpha=0.5, redo=False,
+                    extra_pairs=None):
     """
     Compute position-position covariance matrices for meter groups and
     the 10 most-represented individual tune parts.
@@ -1656,7 +1658,8 @@ def part_covariance(res, parts_data, factor0=2, nbars=8, alpha=0.5, redo=False):
     For each meter, computes the covariance across all pairs with the
     same meter via ``part_covariance_meter``.  Then identifies the top 10
     tune/part combinations by hit count and computes their individual
-    covariance matrices.
+    covariance matrices.  Any additional ``(tune_id, part_id)`` pairs
+    supplied via ``extra_pairs`` are processed after the top-10 set.
 
     Parameters
     ----------
@@ -1673,6 +1676,9 @@ def part_covariance(res, parts_data, factor0=2, nbars=8, alpha=0.5, redo=False):
         Inverse-frequency weighting exponent.  Default is ``0.5``.
     redo : bool, optional
         Recompute caches if ``True``.  Default is ``False``.
+    extra_pairs : list of (tune_id, part_id), optional
+        Hard-coded ``(tune_id, part_id)`` pairs to process in addition to
+        the automatically selected top-10.  Default is ``None``.
 
     Returns
     -------
@@ -1681,21 +1687,32 @@ def part_covariance(res, parts_data, factor0=2, nbars=8, alpha=0.5, redo=False):
     # Average across tunes with the same meter
     for meter in METER_LIST:
         path = PATH_FIG_DATA.joinpath(f"part_cov-{meter.replace('/', '_')}.npy")
+        print(f"Running on {meter}")
         part_covariance_meter(res, parts_data, meter, path, alpha=alpha, redo=redo)
 
-    # Look at individual parts of tunes,
+    # To find candidate parts that have a lot of variants, first look at individual parts of tunes,
     # sort by most pairs, and pick the first 10
-    res = res.loc[(res.query_tune==res.target_tune)&(res.query_part==res.target_part)]
-    count = Counter(get_uniq(x) for x in res[['query', 'target']].values.ravel())
+    res_same = res.loc[(res.query_tune==res.target_tune)&(res.query_part==res.target_part)]
+    count = Counter(get_uniq(x) for x in res_same[['query', 'target']].values.ravel())
     candidates = sorted(count.items(), key=lambda x: x[1])[::-1]
     part_set = []
     for (tune_id, part_id), num in candidates:
-        print(tune_id, part_id, num)
         part_set.append((tune_id, part_id))
         if len(part_set) >= 10:
             break
+
+    # Append any hard-coded extra pairs (skip duplicates)
+    if extra_pairs:
+        part_set_set = set(part_set)
+        for pair in extra_pairs:
+            if pair not in part_set_set:
+                part_set.append(pair)
+                part_set_set.add(pair)
+
     for tune_id, part_id in part_set:
+        # This time round, allow any similar parts from any tune, and any part_id
         idx = (res.query_tune==tune_id)&(res.query_part==part_id)
+        print(f"Running on tune {tune_id} part {part_id}. Total: {np.sum(idx)}")
         meter = res.loc[idx, 'target_meter'].iloc[0]
         path = PATH_FIG_DATA.joinpath(f"part_cov-{tune_id}_{part_id}.npy")
         part_covariance_meter(res.loc[idx], parts_data, meter, path, alpha=alpha, redo=redo)
@@ -1761,7 +1778,7 @@ def part_covariance_meter(res, parts_data, meter, path, factor0=2, nbars=8, alph
         weights = utils.inverse_frequency_weights(res, alpha)
         print(f"Running covariance analysis on {meter} tunes: {len(res)} total")
 
-        changes = []
+        rep_mat = []
         eq = []
         idx = []
         for j, i in enumerate(res.index):
@@ -1785,20 +1802,37 @@ def part_covariance_meter(res, parts_data, meter, path, factor0=2, nbars=8, alph
             # Remove excess
             tc1, tc2 = tc1[:ngrid], tc2[:ngrid]
 
-            # Find the positions that have the same notes in each sequence,
-            # but have different notes across sequences.
+            # Find the positions that have the same notes in each sequence
             # This indicates where repetition occurs, and where long-range covariance
             # is due to preservation of repetition
-            mat = (tc1[:,None] == tc1[None,:]) & (tc2[:,None] == tc2[None,:]) & (tc1[:,None] != tc2[None,:])
+            rep_mat.append((tc1[:,None] == tc1[None,:]) & (tc2[:,None] == tc2[None,:]))
 
-            changes.append(mat)
-            eq.append(tc1 == tc2)
+            # Get boolean match vector
+            b = (tc1 == tc2).astype(float)
+
+            eq.append(b)
             idx.append(j)
 
-        cov = np.cov(np.array(eq).T, aweights=weights[idx])
-        rep = np.average(changes, weights=weights[idx], axis=0)
-        np.save(path, [cov, rep])
-        return cov, rep
+        w = weights[idx]
+        eq_arr = np.array(eq)
+        cov = np.cov(eq_arr.T, aweights=w)
+
+        # Compute "repetition covariance"
+        mu = np.average(eq_arr, weights=w, axis=0)
+        rep_cov_sum = np.zeros((ngrid, ngrid))
+        for i in range(len(idx)):
+            dev = eq_arr[i] - mu
+            rep_cov_sum += w[i] * rep_mat[i] * np.outer(dev, dev) 
+
+        rep_cov = rep_cov_sum / np.sum(w) 
+
+        np.save(path, [cov, rep_cov])
+
+        conservation = np.average(eq_arr, weights=w, axis=0)
+        conservation_path = path.with_name(path.stem + "_conservation" + path.suffix)
+
+        np.save(conservation_path, conservation)
+        return cov, rep_cov
 
 
 ### Code for recreating the analyses in the paper.
