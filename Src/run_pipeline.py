@@ -1,4 +1,5 @@
 from collections import Counter
+from functools import partial
 from multiprocessing import Pool
 import pickle
 import shutil
@@ -8,7 +9,7 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
-from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.metrics import roc_curve, roc_auc_score, f1_score, confusion_matrix
 import statsmodels.api as sm
 from tqdm import tqdm
 
@@ -772,6 +773,119 @@ def note_stability_key_finding(df, tunes, res0, parts_data, pid=0.85, redo=False
         correct_key = np.array(correct_key)
         np.save(path, correct_key)
         return correct_key
+
+
+def full_tune_key_finding(df=None, tunes=None, redo=False):
+    """
+    Evaluate the key-finding algorithm on full tunes (no train/test split).
+
+    Builds empirical modal profiles from the cleaned corpus via
+    ``KMF.get_modal_profiles``, then runs ``KMF.assign_key_and_mode`` on
+    every tune's full ``tchroma`` sequence and compares the predicted
+    key + mode against the ground-truth label.  All tunes are transposed
+    so the tonic maps to C (pitch class 0); the ground-truth key is
+    therefore ``'C'`` and the ground-truth mode is taken from the suffix
+    of ``df['mode']``.
+
+    Parameters
+    ----------
+    df, tunes : optional
+        Cleaned setting-level metadata and matching tune feature dict as
+        returned by ``load_tunes.load_thesession_data``.  If either is
+        ``None``, both are loaded fresh.
+    redo : bool, optional
+        If ``True``, recompute even if the cache exists.  Default is
+        ``False``.
+
+    Returns
+    -------
+    dict
+        Mapping with the evaluation results:
+
+        * ``'y_true'``, ``'y_pred'`` — arrays of ground-truth and predicted
+          mode strings (e.g. ``'Cmajor'``, ``'G#dorian'``).
+        * ``'f1_joint_macro'`` — macro F1 over the four ground-truth
+          joint classes (``Cmajor``/``Cmixolydian``/``Cminor``/``Cdorian``).
+        * ``'f1_mode_macro'`` — macro F1 over the four mode classes,
+          ignoring predicted tonic.
+        * ``'acc_joint'``, ``'acc_mode'``, ``'acc_key'`` — top-1 accuracy
+          for joint, mode-only, and key-only predictions.
+    """
+    path = PATH_FIG_DATA.joinpath("full_tune_key_finding.npz")
+    if path.exists() and not redo:
+        data = np.load(path, allow_pickle=True)
+        return {k: data[k] for k in data.files}
+
+    if df is None or tunes is None:
+        df, tunes = load_tunes.load_thesession_data()
+
+    modes = list(MODES.keys())
+
+    def mode_suffix(s):
+        return s[2:] if len(s) >= 2 and s[1] == '#' else s[1:]
+
+    def key_prefix(s):
+        return s[:2] if len(s) >= 2 and s[1] == '#' else s[:1]
+
+    df = df.copy()
+    df['mode_only'] = df['mode'].apply(mode_suffix)
+
+    # Build empirical modal profiles from the corpus; the helper applies
+    # its own profile-building filters internally.
+    profiles = KMF.get_modal_profiles(df, tunes)
+
+    # Ground truth: everything is transposed so the tonic is C; the mode
+    # comes from the dataset annotation.
+    y_true = np.array([f"C{m}" for m in df['mode_only']])
+    print(f"Evaluating key-finding on {len(df)} tunes")
+
+    tchromas = list(df['tchroma'])
+    worker = partial(KMF.assign_key_and_mode, mode_profiles=profiles)
+    with Pool(N_PROC) as pool:
+        y_pred = list(tqdm(pool.imap(worker, tchromas, chunksize=64),
+                           total=len(tchromas)))
+    y_pred = np.array(y_pred)
+
+    # Joint F1 restricted to the four ground-truth classes so that
+    # predicted-only labels (e.g. 'Gmajor' when GT is 'Cmajor') don't
+    # spawn empty-support classes.
+    gt_labels = [f"C{m}" for m in modes]
+    f1_joint_macro = f1_score(y_true, y_pred, labels=gt_labels, average='macro', zero_division=0)
+    f1_joint_weighted = f1_score(y_true, y_pred, labels=gt_labels, average='weighted', zero_division=0)
+    acc_joint = float(np.mean(y_true == y_pred))
+
+    y_true_mode = np.array([mode_suffix(s) for s in y_true])
+    y_pred_mode = np.array([mode_suffix(s) for s in y_pred])
+    f1_mode_macro = f1_score(y_true_mode, y_pred_mode, labels=modes, average='macro', zero_division=0)
+    f1_mode_weighted = f1_score(y_true_mode, y_pred_mode, labels=modes, average='weighted', zero_division=0)
+    acc_mode = float(np.mean(y_true_mode == y_pred_mode))
+
+    y_pred_key = np.array([key_prefix(s) for s in y_pred])
+    acc_key = float(np.mean(y_pred_key == 'C'))
+
+    cm_joint = confusion_matrix(y_true, y_pred, labels=gt_labels)
+    cm_mode = confusion_matrix(y_true_mode, y_pred_mode, labels=modes)
+
+    print(f"Joint (key+mode) — acc {acc_joint:.4f}  F1 macro {f1_joint_macro:.4f}  F1 weighted {f1_joint_weighted:.4f}")
+    print(f"Mode only       — acc {acc_mode:.4f}  F1 macro {f1_mode_macro:.4f}  F1 weighted {f1_mode_weighted:.4f}")
+    print(f"Key only        — acc {acc_key:.4f}")
+    print("Joint confusion matrix (rows=true, cols=pred):")
+    print("  labels:", gt_labels)
+    print(cm_joint)
+    print("Mode confusion matrix (rows=true, cols=pred):")
+    print("  labels:", modes)
+    print(cm_mode)
+
+    out = dict(
+        y_true=y_true, y_pred=y_pred,
+        gt_labels=np.array(gt_labels), mode_labels=np.array(modes),
+        cm_joint=cm_joint, cm_mode=cm_mode,
+        f1_joint_macro=f1_joint_macro, f1_joint_weighted=f1_joint_weighted,
+        f1_mode_macro=f1_mode_macro, f1_mode_weighted=f1_mode_weighted,
+        acc_joint=acc_joint, acc_mode=acc_mode, acc_key=acc_key,
+    )
+    np.savez(path, **out)
+    return out
 
 
 
