@@ -1,16 +1,35 @@
+import os
 from pathlib import Path
 
 from Bio.Data.IUPACData import protein_letters
 import numpy as np
 
+__all__ = [
+    "PATH_BASE", "PATH_DATA", "PATH_FIG", "PATH_FIG_DATA", "PATH_CACHE",
+    "PATH_MMSEQS", "PATH_PROTEIN",
+    "N_PROC",
+    "letters", "chromatic_notes", "chromatic_map", "position_key", "letter_key",
+    "note_list", "note_map",
+    "MMSEQS_BIN",
+    "MODES", "MODE_DIFF", "MODE_COMPAT",
+    "METER_LIST", "SUBDIV_METER", "HIERARCHY", "END_POS",
+    "DANCE_LIST", "SUBDIV_DANCE", "HIERARCHY_DANCE",
+]
+
 
 ### Path to directory
-PATH_BASE = Path("/home/jmcbride/projects/TheSessionEvo")
-PATH_DATA = Path("/home/jmcbride/projects/MelodicSequenceAlignment/Data")
+# Repo root = two levels up from this file (Src/thesession/config.py -> repo root)
+PATH_BASE = Path(__file__).resolve().parents[2]
+
+# Raw input corpora. Defaults to <repo>/Data; override with THESESSION_DATA
+# for an out-of-tree data directory (e.g. the Zenodo download location).
+PATH_DATA = Path(os.environ.get("THESESSION_DATA", PATH_BASE / "Data"))
+
 PATH_FIG = PATH_BASE.joinpath("Figures")
 PATH_FIG_DATA = PATH_BASE.joinpath("FigureData")
 PATH_CACHE = PATH_BASE.joinpath("Cache")
 PATH_MMSEQS = PATH_BASE.joinpath("MMseqs")
+PATH_PROTEIN = PATH_BASE.joinpath("ProteinData")
 
 ### Number of processors used in multiprocessing
 N_PROC = 8

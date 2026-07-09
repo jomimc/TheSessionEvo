@@ -4,7 +4,7 @@ import re
 import music21
 import numpy as np
 
-from thesession.config import *
+from thesession.config import chromatic_map
 from thesession.io import pyabc
 
 

@@ -3,7 +3,7 @@ from collections import Counter, defaultdict
 import numpy as np
 from scipy.stats import pearsonr, multinomial, entropy
 
-from thesession.config import *
+from thesession.config import MODES, chromatic_map, chromatic_notes
 from thesession.alignment import parts as PA
 from thesession import utils
 

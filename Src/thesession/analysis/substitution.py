@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from thesession.config import *
+from thesession.config import PATH_MMSEQS, letters, position_key
 from thesession.io import tune_loader as load_tunes
 from thesession.alignment import pairwise as seq_align
 from thesession.io import seq_io

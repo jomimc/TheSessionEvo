@@ -5,7 +5,6 @@ from Bio.Align import PairwiseAligner
 import numpy as np
 import pandas as pd
 
-from thesession.config import *
 from thesession.io import tune_loader as load_tunes
 from thesession.io import seq_io
 

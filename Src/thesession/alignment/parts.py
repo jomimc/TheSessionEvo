@@ -12,7 +12,7 @@ import pandas as pd
 from scipy.stats import entropy
 from tqdm import tqdm
 
-from thesession.config import *
+from thesession.config import PATH_CACHE
 from thesession import utils
 
 

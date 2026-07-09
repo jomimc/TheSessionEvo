@@ -1,9 +1,10 @@
 from collections import defaultdict
 
 from Bio import Seq, SeqRecord, SeqIO
+import numpy as np
 import pandas as pd
 
-from thesession.config import *
+from thesession.config import PATH_BASE, PATH_MMSEQS
 from thesession import utils
 
 ######################################################################
