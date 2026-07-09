@@ -1,8 +1,12 @@
 from collections import Counter
+import pickle
 import numpy as np
+import pandas as pd
 from scipy.stats import pearsonr, spearmanr
 
-from thesession.config import *
+from thesession.config import (
+    END_POS, HIERARCHY, METER_LIST, MODES, MODE_DIFF, PATH_FIG_DATA, letters,
+)
 
 ######################################################################
 ### Convert sequence format
@@ -600,3 +604,38 @@ def get_mode_indices(res, mismatches, alg='exact'):
                 i4 = res.target_mode == 'minor pentatonic'
             idx_list.append(np.array((i1 & i2) | (i1 & i4) | (i2 & i3), bool))
     return idx_list
+
+
+def load_hierarchy_stability_df(ipid=7):
+    """
+    Build a DataFrame combining metrical hierarchy, onset stability, and
+    positional substitution rate for a given PID threshold index.
+
+    Parameters
+    ----------
+    ipid : int, optional
+        Index into ``np.arange(0.5, 1, 0.05)`` selecting the PID
+        threshold.  Default is ``7`` (corresponds to PID = 0.85).
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per (meter, within-bar position) combination, with
+        columns ``'hierarchy'``, ``'end_pos'``, ``'meter'``,
+        ``'stability'``, ``'rel_stability'`` (stability / mean_stability),
+        ``'sub_rate'``, and ``'rel_sub_rate'`` (sub_rate / mean_sub_rate).
+    """
+    path = PATH_FIG_DATA.joinpath(f"onset_histograms.pkl")
+    stability = pickle.load(open(path, 'rb'))
+    cols = ['hierarchy', 'end_pos', 'meter', 'stability', 'rel_stability',
+            'sub_rate', 'rel_sub_rate']
+    data = []
+    for i, meter in enumerate(METER_LIST):
+        path = PATH_FIG_DATA.joinpath(f"bar_pos_rate-{meter.replace('/', '_')}.npy")
+        rate = np.load(path)[ipid]
+        stab_mean = np.mean(stability[meter][0])
+        for j, (r, s) in enumerate(zip(rate[0], stability[meter][0])):
+            data.append([HIERARCHY[meter][j], END_POS[meter][j],
+                         meter, s, s / stab_mean,
+                         r, r / np.mean(rate[0])])
+    return pd.DataFrame(data=data, columns=cols)

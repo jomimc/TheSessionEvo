@@ -18,7 +18,10 @@ from sklearn.metrics import roc_curve, roc_auc_score
 import statsmodels.api as sm
 
 from thesession.alignment import parts as PA
-from thesession.config import *
+from thesession.config import (
+    HIERARCHY, METER_LIST, MODES, PATH_DATA, PATH_FIG, PATH_FIG_DATA,
+    PATH_PROTEIN, SUBDIV_METER, chromatic_notes, letters,
+)
 from thesession.io import tune_loader as load_tunes
 from thesession.io import savage_loader as savage
 from thesession.io import seq_io
@@ -35,8 +38,14 @@ REG_LINE_COLOR = '#444444'  # dark grey regression lines
 METER_PALETTE = dict(zip(METER_LIST, sns.color_palette("Set2", n_colors=len(METER_LIST))))
 
 
+# Protein analyses
+BLOSUM62_AA_PARASAIL = list("ARNDCQEGHILKMFPSTWYV")  # parasail storage order
+BLOSUM62_AA = list("CSTAGPDEQNHRKMILVWYF")           # display order
+
+
+
 #######################################################################
-### Fig 1 :: tune family recognition
+### Fig 1 :: tune family recognition and methods
 
 
 ### First run "data_for_fig1" in "main.py"
@@ -44,8 +53,8 @@ def plot_roc_curve():
     fig, ax = plt.subplots(figsize=(4,4))
     path = PATH_FIG_DATA.joinpath("fig1_roc_curve_data.pkl")
     data = pickle.load(open(path, 'rb'))
-    data_names = ['thesession_tunes', 'meertens', 'savage_english']#, 'savage_japanese']
-    lbls = ['TheSession', 'Meertens', 'Savage English']#, 'Savage Japanese']
+    data_names = ['thesession_tunes', 'meertens']#, 'savage_english', 'savage_japanese']
+    lbls = ['TheSession', 'Meertens']#, 'Bronson', 'Savage Japanese']
 
     for i, name in enumerate(data_names):
         fpr, tpr = data[f"{name}_roc"]
@@ -85,7 +94,7 @@ def plot_tune_as_pianoroll(tune, fig='', ax='', meter='', factor=2, max_bar=32):
     for i, j in enumerate(tc):
         mat[j,i] = col[j]
 
-    im = ax.imshow(mat, aspect='auto')
+    im = ax.imshow(mat, aspect='auto', interpolation='none')
     ax.invert_yaxis()
     ax.set_yticks(range(12))
     ax.set_yticklabels(chromatic_notes)
@@ -112,36 +121,8 @@ def plot_example_tune(tunes, tune_id=62, meter='6/8'):
     fig.savefig(PATH_FIG.joinpath("fig1_tune.pdf"), bbox_inches='tight')
 
 
-
-
 #######################################################################
-### Fig 2 :: Mutability
-
-
-def fig2():
-    # A: Amino acid prevalence / mutability
-    # B: Note stability and tonal hierarchy (rate vs prevalence, inset: correlation for modes / all)
-    # C: Key finding - just the key, not the mode (since that didn't work?) 
-    #    split data into high / low stability
-    # D: IDyOM - models trained on midi, tchroma, and tchroma with mode
-
-    fig = plt.figure(figsize=(12,8))
-    fig.subplots_adjust(wspace=9.0, hspace=0.5)
-    gs = GridSpec(5,17, height_ratios=[1,1,.1,1,1])
-    ax = [fig.add_subplot(gs[:2,:8]),
-          fig.add_subplot(gs[3,:8]), fig.add_subplot(gs[4,:8]),
-          fig.add_subplot(gs[:2,9:]), fig.add_subplot(gs[0,14:]),
-          fig.add_subplot(gs[3:,9:])]
-    
-    plot_amino_acid_mutability(ax=ax[0])
-    plot_mutability_vs_frequency(alpha=0.5, ipid=7, ax=ax[1:4])
-    plot_sub_mat_modes_corr(mode_alg='exact_pent', alpha=0.5,
-                            redo=False, ipid=7, ax=ax[4])
-    plot_key_finding(ax=ax[5])
-
-    fig.savefig(PATH_FIG.joinpath("fig2.png"), bbox_inches='tight')
-    fig.savefig(PATH_FIG.joinpath("fig2.pdf"), bbox_inches='tight')
-
+### Helper functions for Fig. 1 and 2
 
 def plot_amino_acid_mutability(ax=''):
     if isinstance(ax, str):
@@ -175,599 +156,6 @@ def plot_amino_acid_mutability(ax=''):
     ax.set_title("A  Amino Acid Mutability", loc='center', fontweight='bold')
 
 
-### Plot mutability vs frequency overall
-### ipid = 7 corresponds to 0.85
-def plot_mutability_vs_frequency(ipid=7, alpha=0.5, ax='', name="submat-all"):
-    path_mat = PATH_FIG_DATA.joinpath(f"{name}.npy")
-    mat = np.load(path_mat)[ipid]
-    mutability, frequency = calculate_mutability_and_frequency(mat)
-
-    if isinstance(ax, str):
-        fig = plt.figure(figsize=(12,4))
-        fig.subplots_adjust(wspace=0.3, hspace=0.2)
-
-        gs = GridSpec(2,2)
-        ax = [fig.add_subplot(gs[0,0]),
-              fig.add_subplot(gs[1,0]),
-              fig.add_subplot(gs[:,1])]
-
-    X = np.arange(12)
-    lbls = [f'\n{s}' if i % 2 else s for i, s in enumerate(chromatic_notes)]
-    col = sns.color_palette('Paired')[:2][::-1] * 6
-
-    ax[0].bar(X, frequency, 0.8, alpha=0.7, ec='k', color=col)
-    ax[1].bar(X, mutability, 0.8, alpha=0.7, ec='k', color=col)
-    for i in [0,1]:
-        ax[i].set_xticks(X)
-        ax[i].set_xticklabels(lbls)
-
-    ax[0].set_ylabel("Frequency")
-    ax[1].set_ylabel("Mutability")
-    ax[0].set_yscale('log')
-
-    ax[2].plot(frequency, mutability, 'o')
-    sns.regplot(x=frequency, y=mutability, logx=True, scatter=False, color=sns.color_palette()[5], ax=ax[2])
-    ax[2].set_xlabel("Count")
-    ax[2].set_ylabel("Mutability")
-    ax[2].set_xscale('log')
-
-    idx = np.isfinite(frequency) & np.isfinite(mutability) & (frequency > 0)
-    r, p = pearsonr(np.log(frequency[idx]), mutability[idx])
-    ax[2].text(0.10, 0.27, f"$r$ = {r:5.2f}\n$p$ = {p:5.2g}", transform=ax[2].transAxes, fontsize=12)
-
-    for a in ax:
-        a.spines['right'].set_visible(False)
-        a.spines['top'].set_visible(False)
-
-
-
-### Plot correlations between mutability and frequency, separated by mode
-def plot_sub_mat_modes_corr(mode_alg='exact_pent', alpha=0.5, redo=False, ipid=7, ax=''):
-    pid_list = np.arange(0.5, 1, 0.05)
-    path = PATH_FIG_DATA.joinpath(f"mode_stability_hierarchy_corr_{mode_alg}_a{alpha:3.1f}.npy")
-
-    if path.exists() and not redo:
-        corr = np.load(path)
-    else:
-        corr = []
-        path_list = [PATH_FIG_DATA.joinpath("submat-all.npy")] + \
-                    [PATH_FIG_DATA.joinpath(f"submat-{mode_alg}-{mode}.npy") for mode in MODES.keys()]
-        for i, path_mat in enumerate(path_list):
-            mat_list = np.load(path_mat)
-            for j, pid in enumerate(pid_list):
-                # Calculate overall correlation
-                mutability, frequency = calculate_mutability_and_frequency(mat_list[j])
-
-                # Remove zeros or nans (rare notes)
-                idx = np.isfinite(frequency) & np.isfinite(mutability) & (frequency > 0)
-                r, p = pearsonr(np.log(frequency[idx]), mutability[idx])
-                corr.append([r, p])
-                # Only look at scale degrees
-                if i > 0:
-                    idx = np.argsort(frequency)[-7:]
-                    r, p = pearsonr(np.log(frequency[idx]), mutability[idx])
-                    corr.append([r, p])
-                # Add nans as a placeholder instead of within-scale correlation
-                # when not separating pairs by mode
-                else:
-                    corr.append([np.nan, np.nan])
-
-        corr = np.array(corr).reshape(len(MODES) + 1, pid_list.size, 2, 2)
-        np.save(path, corr)
-        print(corr.shape)
-
-    if isinstance(ax, str):
-        fig, ax = plt.subplots()
-
-    cmap = sns.light_palette('seagreen', as_cmap=True)
-    im = ax.imshow(np.abs(corr[:,ipid,:,0]), cmap=cmap, aspect='auto')
-    for (i, j), z in np.ndenumerate((corr[:,ipid,:,0])):
-        zstr = '' if np.isnan(z) else f'{abs(z):4.2f}'
-        ax.text(j, i, zstr, ha='center', va='center')
-
-    ax.set_xticks([0,1])
-    ax.set_xticklabels(["All\nNotes", "Within\nScale"])
-
-    ax.set_yticks(np.arange(5))
-    ax.set_yticklabels(["overall"] + list(MODES.keys()))
-
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-
-    c = corr[:,ipid,:,1]
-    print("p-values after correction")
-    print(np.round(false_discovery_control(c[~np.isnan(c)]), 3))
-
-    
-def plot_key_finding(ax='', pid=0.85):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots()
-    path = PATH_FIG_DATA.joinpath(f"note_stability_key_finding_{pid:4.2f}.npy")
-    data = np.load(path)
-    N_arr = np.concatenate([np.arange(2, 10, 2), np.arange(10, 55, 5)])
-    lbls = ['First Notes', 'Most Conserved Notes', 'Least Conserved Notes']
-    col = ['k'] + sns.color_palette()[:2]
-    Y = []
-    for i, c in enumerate(col):
-        ym = np.nanmean(data[:,i], axis=0)
-        ys = np.nanstd(data[:,i], axis=0)
-        yse = ys / len(data)**0.5
-        ax.plot(N_arr, ym, '-', c=c, label=lbls[i])
-        ax.errorbar(N_arr, ym, yerr=yse, color=c, fmt='')
-
-        Y.append(ym)
-
-    print(np.round(Y[1] / Y[2], 2))
-
-    xlim = ax.get_xlim()
-    ax.plot(xlim, [1/12]*2, ':k', label='random')
-    ax.set_xlim(xlim)
-
-    ax.legend(bbox_to_anchor=(0.4, 0.5), frameon=False, fontsize=8)
-    ax.set_xlabel("Number of eighth notes used to estimate key")
-    ax.set_ylabel("Proportion correct")
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-
-
-
-#######################################################################
-### Fig 3 :: Note Substitutions
-
-
-def fig3(ipid=7, mode_alg='exact_pent', alpha=0.5, in_key=False, prune=0.01):
-    # A: blosum matrix for amino acids + other protein things (LATERe
-    # B: substitution matrix for notes in heatmap form
-    # C: substitution matrix for notes in graph form
-    # G: substitution rate vs distance
-
-    fig = plt.figure(figsize=(12,10))
-    fig.subplots_adjust(wspace=0.3, hspace=0.4)
-    gs = GridSpec(3,20)
-    ax = [fig.add_subplot(gs[i,j:j+6]) for j in [0,8,14] for i in range(2)] + \
-         [fig.add_subplot(gs[2,j:j+9]) for j in [0,11]]
-
-    path_mat = PATH_FIG_DATA.joinpath(f"submat-savage_english.npy")
-    mat = np.load(path_mat)
-    letters = np.arange(12)
-
-    plot_submat_graph(letters, mat, ax=ax[0], norm=False, prune=prune)
-    plot_submat_graph(letters, mat, ax=ax[1], norm=True, prune=prune)
-    ax[0].set_title("Absolute Rate")
-    ax[1].set_title("Normalized Rate")
-    
-    path_list = [PATH_FIG_DATA.joinpath(f"submat-{mode_alg}-{mode}.npy") for mode in MODES.keys()]
-
-    mat_list = [np.load(path_mat)[ipid] for path_mat in path_list]
-
-    for i, ((mode, scale), mat) in enumerate(zip(MODES.items(), mat_list)):
-        letters = np.arange(12)
-        if in_key:
-            letters = np.arange(7) + 1
-            mat = mat[MODES[mode]][:, MODES[mode]]
-        plot_submat_graph(letters, mat, norm=True, ax=ax[i+2], prune=prune, mode=scale)
-        ax[i+2].set_title(mode)
-
-    plot_sub_dist_both(ax=ax[6:])
-
-    fs = 16
-    for i, a in zip([0, 2, 6, 7], 'ABCD'):
-        ax[i].text(-0.10, 1.00, a, transform=ax[i].transAxes, fontsize=fs)
-
-    fig.savefig(PATH_FIG.joinpath("fig3.png"), bbox_inches='tight')
-    fig.savefig(PATH_FIG.joinpath("fig3.pdf"), bbox_inches='tight')
-
-
-def plot_submat_graph(letters, mat, norm=True, ax='', prune=0.001, edge='rel', color=False, mode=None):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots()
-
-    # Get a copy to prevent overwriting original
-    mat = mat.copy()
-
-    # Reorder matrix to get label positions correct
-    order = np.roll(np.arange(12), -4)[::-1]
-    mat = mat[order][:,order]
-
-    # Set uncommon notes to zero to avoid outliers due to poor statistics
-    if prune > 0:
-        base_count = np.diag(mat)
-        base_prob = base_count / np.nansum(base_count)
-        idx = np.where(base_prob < prune)
-
-    if norm:
-        # Get log-odds
-        mat = SM.obs_mat_to_log_odds(mat)
-
-    if prune > 0:
-        for i in idx:
-            mat[i] = np.nan
-            mat[:,i] = np.nan
-
-    # Remove self edges
-    np.fill_diagonal(mat, 0)
-
-    # Create graph
-    G = nx.from_numpy_array(mat, create_using=nx.DiGraph)
-
-    # Get weights for edges
-    weights = np.array([x for x in mat.T.ravel() if x != 0])
-
-    # Assign new weight sizes based on an ordinal scale
-    nweight = 14
-    weight_cat = np.logspace(-0.5, 1, nweight+1)
-    mask = np.isnan(weights)
-    wmin, wmax = np.nanmin(weights), np.nanmax(weights)
-    weight_class = np.digitize(weights, np.linspace(wmin-0.01, wmax+0.01, nweight))
-    edge_weights = weight_cat[weight_class]
-    # Set nan weights to zero weight
-    edge_weights[mask] = 0
-
-    if color:
-        i, j = np.where(mat.T != 0)
-        sub_dist = np.abs(i - j).astype(int)
-        sub_dist = np.min([sub_dist, np.abs(12 - sub_dist)], axis=0)
-        col = np.array(sns.color_palette())[sub_dist]
-    else:
-        col = 'grey'
-        col = [0.6]*3
-
-    if len(letters) == 12:
-        lbls = {i:l for i, l in zip(order, chromatic_notes)}
-    else:
-        lbls = {i:l for i, l in zip(order, letters)}
-
-    if not isinstance(mode, type(None)):
-        nodelist = order[mode]
-        lbls = {i:chromatic_notes[j] for i, j in zip(nodelist, mode)}
-    else:
-        nodelist = order.copy()
-
-    pos = nx.circular_layout(G)
-    nx.draw_networkx_nodes(G, pos, node_size=500, node_color='skyblue', ax=ax,
-                           edgecolors=[0.1]*3, nodelist=nodelist)
-    nx.draw_networkx_edges(G, pos, edge_color=col, arrows=True,
-                           width=edge_weights, arrowstyle='-', min_source_margin=10,
-                           min_target_margin=10, ax=ax)
-
-    nx.draw_networkx_labels(G, pos, lbls, ax=ax)
-
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-
-
-### Plot substitution rate vs substitution distance
-def plot_sub_dist_sub_rate(data=None, ipid=7, ax='', alpha=0.5):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(1,2,figsize=(12,5))
-    X = np.arange(1, 14)
-
-    path = PATH_FIG_DATA.joinpath(f"mint_dist_tunes.npy")
-    mint = np.load(path)
-
-    ax[0].plot(mint[0][:X.size], (mint[1] / mint[1].sum())[:X.size], '-k', label='Interval distribution', alpha=0.9, fillstyle='none')
-
-    path = PATH_FIG_DATA.joinpath(f"sub_dist_all.npy")
-    Y, Y2 = np.load(path)[ipid]
-
-    ax[0].plot(X, Y / np.sum(Y), '-o', label='TheSession', alpha=0.9, fillstyle='none')
-    ax[1].plot(X, Y2, '-o', label='TheSession')
-
-    print("Correlation with M-int distribution:")
-    print(pearsonr(Y, mint[1][:X.size]))
-
-    print("Correlation with M-int:")
-    print(pearsonr(Y, X))
-
-    xlim = ax[1].get_xlim()
-    slope, intercept, r, p = linregress(X, Y2)[:4]
-    sns.regplot(x=X, y=Y2, ax=ax[1], scatter=False, color='grey', line_kws={"alpha":0.7},
-                label=r"$r$ = " + f"{r:4.2f}" + "\n" + r"$p$ = " + f"{p:5.3f}")
-    print("Linear fit:")
-    print(slope, intercept, r, p)
-
-    ax[1].plot(xlim, [0,0], ':', color='grey')
-    ax[1].set_xlim(xlim)
-
-
-
-def plot_sub_dist_both(ax=''):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(1,2,figsize=(12,5))
-    plot_sub_dist_sub_rate(ax=ax)
-
-    X = np.arange(1, 12)
-    Y1 = np.loadtxt(PATH_DATA.joinpath("SavageFig/English.txt"), float)[:,1]
-    Y2 = np.loadtxt(PATH_DATA.joinpath("SavageFig/Japanese.txt"), float)[:,1]
-    ax[0].plot(X, Y1 / Y1.sum(), '-s', label='Bronson', alpha=0.9, fillstyle='none')
-    ax[0].plot(X, Y2 / Y2.sum(), '-^', label='Japanese', alpha=0.9, fillstyle='none')
-
-    for i in [0,1]:
-        ax[i].legend(loc='best', frameon=False, fontsize=8)
-        ax[i].set_xlabel("Intervallic distance (semitones)")
-    ax[0].set_ylabel("Substitution Rate\n[Probability]")
-    ax[1].set_ylabel("Log-odds score")
-
-    for a in ax:
-        a.spines['right'].set_visible(False)
-        a.spines['top'].set_visible(False)
-
-
-
-#######################################################################
-### Fig 4 :: Position dependence (Site)
-
-def fig4(ipid=7, alpha=0.5):
-    fig = plt.figure(figsize=(11,6))
-    fig.subplots_adjust(wspace=0.3, hspace=0.6)
-    gs = GridSpec(2,2, width_ratios=[1.5, 1])
-    ax = [fig.add_subplot(gs[i,j]) for j in range(2) for i in range(2)]
-
-    plot_bar_pos_sub_rate(ipid, alpha, ax=ax[:2])
-    plot_bar_pos_rate_vs_hierarchy(ipid, ax=ax[2])
-    plot_bar_pos_rate_vs_stability(ipid, ax=ax[3])
-
-    fs = 16
-    for i, a in enumerate('ABCD'):
-        ax[i].text(-0.10, 1.00, a, transform=ax[i].transAxes, fontsize=fs)
-        ax[i].spines['right'].set_visible(False)
-        ax[i].spines['top'].set_visible(False)
-
-    fig.savefig(PATH_FIG.joinpath("fig4.png"), bbox_inches='tight')
-    fig.savefig(PATH_FIG.joinpath("fig4.pdf"), bbox_inches='tight')
-
-
-def plot_bar_pos_sub_rate(ipid=7, alpha=0.5, redo=False, ax='',
-                          meter_list=['4/4', '6/8']):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(2,2, figsize=(11,7))
-        fig.subplots_adjust(wspace=0.4, hspace=0.4)
-        ax = ax.reshape(ax.size)
-
-    col = np.array(sns.color_palette("mako", n_colors=4))
-    for i, meter in enumerate(meter_list):
-        path = PATH_FIG_DATA.joinpath(f"bar_pos_rate-{meter.replace('/', '_')}.npy")
-        rate = np.load(path)[ipid]
-        X = np.linspace(0, 1, SUBDIV_METER[meter] + 1)[:-1]
-        width = 1 / SUBDIV_METER[meter] / 1.5
-        ax[i].bar(X, rate[0], width, color=col[HIERARCHY[meter]], alpha=0.7, ec='k')
-
-        # Manually add whiskers for confidence intervals
-        for j in range(SUBDIV_METER[meter]):
-            ax[i].plot([X[j]]*2, [rate[2,j], rate[3,j]], '-', color='grey')
-
-        ax[i].set_xticks(X)
-        ax[i].set_xticklabels(np.arange(X.size) + 1)
-        ax[i].set_ylim(0, ax[i].get_ylim()[1])
-        ax[i].set_xlabel("Position in Measure (eighth note)")
-        ax[i].set_ylabel("Substitution Rate")
-        ax[i].spines['right'].set_visible(False)
-        ax[i].spines['top'].set_visible(False)
-
-    handles = [Patch(color=c) for c in col[:3]]
-    lbls = ["Main beat", "2nd beat", "3rd beat"]
-    ax[0].legend(handles, lbls, frameon=False, loc='upper center', ncol=3,
-                 fontsize=8, handletextpad=0.5, columnspacing=1.0)
-
-
-### Plot bar substitution rate vs meter
-def plot_bar_sub_rate(ipid=7, alpha=0.5, max_bar=8, redo=False, ax=''):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(figsize=(9,7))
-
-    X = np.arange(max_bar) + 1
-    col = [sns.color_palette()[i%4] for i in X]
-
-    path = PATH_FIG_DATA.joinpath(f"bar_rate-all.npy")
-    bar_rate = np.load(path)[ipid]
-
-    ax.bar(X, bar_rate[0], 0.8, color=col, alpha=0.7, ec='k')
-    for j in range(max_bar):
-        ax.plot([X[j]]*2, [bar_rate[2][j], bar_rate[3][j]], '-', color='grey')
-    ax.set_xlabel("Bar")
-    ax.set_ylabel("Substitution Rate")
-
-
-def plot_bar_pos_rate_vs_hierarchy(ipid=7, ax=''):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots()
-    col = np.array(sns.color_palette("mako", n_colors=4))
-    df = si_figs.load_hierachy_stability_df(ipid)
-    sns.boxplot(x='hierarchy', y='rel_sub_rate', data=df, ax=ax, color='white', showfliers=False)
-    sns.stripplot(x='hierarchy', y='rel_sub_rate', data=df, ax=ax, hue='meter',
-                  palette=METER_PALETTE)
-
-    r, p = pearsonr(*df[['hierarchy', 'rel_sub_rate']].values.T)
-    ax.text(0.05, 0.60, f"$r$ = {r:5.2f}\n$p$ = {p:5.2g}", transform=ax.transAxes, fontsize=8)
-
-    ax.set_xlabel("Metrical Hierarchy")
-    ax.set_ylabel("Substitution rate")
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    handles = [Line2D([], [], marker='o', color=METER_PALETTE[m], lw=0) for m in METER_LIST]
-    ax.legend(handles, METER_LIST, frameon=False, ncol=2, fontsize=8,
-              bbox_to_anchor=(0.75, 1.15), loc='upper right',
-              handlelength=1.0, columnspacing=0.8, handletextpad=0.4)
-
-
-def plot_bar_pos_rate_vs_stability(ipid=7, ax=''):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots()
-    df = si_figs.load_hierachy_stability_df(ipid)
-    sns.scatterplot(x='rel_stability', y='rel_sub_rate', data=df, hue='meter', ax=ax,
-                    palette=METER_PALETTE)
-    ax.plot(*df.loc[df.end_pos==1, ['rel_stability','rel_sub_rate']].values.T, 'ok', fillstyle='none', ms=10)
-    sns.regplot(x='rel_stability', y='rel_sub_rate', data=df, scatter=False, color=REG_LINE_COLOR, ax=ax)
-
-    r, p = pearsonr(*df[['rel_stability', 'rel_sub_rate']].values.T)
-    ax.text(0.25, 0.10, f"$r$ = {r:5.2f}\n$p$ = {p:6.4f}", transform=ax.transAxes, fontsize=8)
-
-    ax.set_xlabel("Rhythmic Strength")
-    ax.set_ylabel("Substitution Rate")
-
-    handles = [Line2D([], [], marker='o', color=METER_PALETTE[m], lw=0) for m in METER_LIST] + \
-              [Line2D([], [], marker='o', fillstyle='none', ms=10, color='k', lw=0)]
-    lbls = METER_LIST + ["End position"]
-    ax.legend(handles, lbls, frameon=False, ncol=2, fontsize=8,
-              bbox_to_anchor=(0.75, 1.15), loc='upper right',
-              handlelength=1.0, columnspacing=0.8, handletextpad=0.4)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-
-
-#######################################################################
-### Fig 5 :: Position dependence (Covariance)
-
-
-
-def fig5(ipid=7, alpha=0.5):
-#   tunes = [(222, 0), (71, 0), (208, 0)]
-
-    fig = plt.figure(figsize=(12,6))
-    fig.subplots_adjust(wspace=0.65, hspace=0.0)
-    gs = GridSpec(2,4)
-    ax = [fig.add_subplot(gs[i,j]) for j in range(4) for i in range(2)]
-
-    plot_cov_part(2, 4, fig=fig, ax=ax[:2])
-    plot_cov_meter("4/4", fig=fig, ax=ax[2:4])
-    plot_cov_meter("6/8", fig=fig, ax=ax[4:6])
-    plot_cov_meter("9/8", fig=fig, ax=ax[6:8], nbars=4)
-    
-    ttls = ['One Part', 'All 4/4', 'All 6/8', 'All 9/8']
-    for i in range(4):
-        ax[i*2].set_title(ttls[i])
-
-    fig.savefig(PATH_FIG.joinpath("fig5.png"), bbox_inches='tight')
-    fig.savefig(PATH_FIG.joinpath("fig5.pdf"), bbox_inches='tight')
-
-
-def plot_cov_mat(fig, ax, mat, nbars=8, nanzero=False, cbar_lbl=''):
-    if nanzero:
-        mat[mat<10**-10] = np.nan
-    finite_vals = mat[np.isfinite(mat)]
-    vmax = float(np.max(np.abs(finite_vals))) if len(finite_vals) > 0 else 1.0
-    im = ax.imshow(mat, cmap='RdBu_r', vmin=-vmax, vmax=vmax)
-    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.ax.get_yaxis().labelpad = 15
-    cbar.ax.set_ylabel(cbar_lbl, rotation=270, labelpad=14.0)
-
-    nstep = mat.shape[0] // nbars
-    ax.set_xticks(np.arange(mat.shape[0])[::nstep])
-    ax.set_xticklabels(np.arange(nbars) + 1)
-    ax.set_yticks(np.arange(mat.shape[0])[::nstep])
-    ax.set_yticklabels(np.arange(nbars) + 1)
-    ax.set_xlabel("Position (measures)")
-    ax.set_ylabel("Position (measures)")
-
-
-def plot_cov_part(tune_id, part_id, nbars=8, fig='', ax=''):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(1,2,figsize=(9,4))
-    path = PATH_FIG_DATA.joinpath(f"part_cov-{tune_id}_{part_id}.npy")
-    cov, rep = np.load(path)
-    lbl = ['Covariance', 'Repetition covariance']
-    for i, mat in enumerate([cov, rep]):
-        plot_cov_mat(fig, ax[i], mat, cbar_lbl=lbl[i])
-
-
-def plot_cov_meter(meter, fig='', ax='', nbars=8):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(1,2,figsize=(9,4))
-    path = PATH_FIG_DATA.joinpath(f"part_cov-{meter.replace('/', '_')}.npy")
-    cov, rep = np.load(path)
-    lbl = ['Covariance', 'Repetition covariance']
-    for i, mat in enumerate([cov, rep]):
-        plot_cov_mat(fig, ax[i], mat, cbar_lbl=lbl[i], nbars=nbars)
-
-
-def plot_melody_structure(cov, d=2, alg='mds'):
-    seed = 15204
-    model = MDS(n_components=d, max_iter=3000, eps=1e-9, n_init=1, n_jobs=1, random_state=seed)
-    if d == 2:
-        fig, ax = plt.subplots()
-    elif d == 3:
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-    distance = 1 - (cov - np.nanmin(cov))
-    coords = model.fit_transform(distance).T
-
-    new_dist = cdist(coords.T, coords.T)
-    print(utils.get_corr(distance.ravel(), new_dist.ravel()))
-
-    col = np.array(sns.color_palette('Paired', n_colors=8))
-    c = col[np.arange(coords.shape[1])//8]
-    bounds = np.arange(9)  # 8 bins → 9 boundaries
-    cmap = ListedColormap(col)
-    norm = BoundaryNorm(bounds, cmap.N)
-
-    sm = ScalarMappable(norm=norm, cmap=cmap)
-
-    im = ax.scatter(*coords, c=c, s=80, edgecolors='k', cmap=cmap)
-    cbar = plt.colorbar(sm, ax=ax, boundaries=bounds, ticks=bounds[:-1]+0.5, orientation='vertical')
-    cbar.set_ticklabels([f"{i}" for i in range(1, 9)])
-    cbar.set_label("Measure")
-    ax.plot(*coords, '-k', lw=0.3)
-    ax.plot(*coords[:,::8], '*k', ms=13)
-
-    ax.grid(False)
-    plt.axis('off')
-    ax.set_box_aspect((1, 1, 1))
-    ax.set_proj_type("ortho")
-
-    draw_orientation_triad(ax, origin=(0.9, 0.9, 0.9))
-
-    ax.view_init(elev=13, azim=-53)
-    fig.savefig(PATH_FIG.joinpath("fig5_view1.png"), bbox_inches='tight')
-    fig.savefig(PATH_FIG.joinpath("fig5_view1.pdf"), bbox_inches='tight')
-
-    ax.view_init(elev=79, azim=-142)
-    fig.savefig(PATH_FIG.joinpath("fig5_view2.png"), bbox_inches='tight')
-    fig.savefig(PATH_FIG.joinpath("fig5_view2.pdf"), bbox_inches='tight')
-
-
-def draw_orientation_triad(ax, size=0.1, origin=(0.1, 0.1, 0.1)):
-    x0, x1 = ax.get_xlim()
-    y0, y1 = ax.get_ylim()
-    z0, z1 = ax.get_zlim()
-
-    # basis vectors
-    axes = np.eye(3)
-
-    colors = ["r", "g", "b"]
-    labels = ["X", "Y", "Z"]
-
-    for v, c, lbl in zip(axes, colors, labels):
-        ax.quiver(
-            x0, y0, z0,
-            v[0], v[1], v[2],
-            length=size,
-            color=c,
-            arrow_length_ratio=0.25,
-            linewidth=2
-        )
-        ax.text(
-            x0 + v[0]*size*1.3,
-            y0 + v[1]*size*1.3,
-            z0 + v[2]*size*1.3,
-            lbl,
-            color=c
-        )
-
-
-#######################################################################
-### New Fig 2 :: Molecular vs Melodic Evolution
-
-
-
-
-PATH_BLAST_MAFFT = PATH_BASE.joinpath("Src", "blast_mafft")
-
-BLOSUM62_AA_PARASAIL = list("ARNDCQEGHILKMFPSTWYV")  # parasail storage order
-BLOSUM62_AA = list("CSTAGPDEQNHRKMILVWYF")           # display order
-
-
 def plot_note_mutability_scatter(ipid=7, alpha=0.5, ax=None, name="submat-all"):
     """Panel B: scatter of note mutability vs frequency (log scale)."""
     if ax is None:
@@ -786,8 +174,8 @@ def plot_note_mutability_scatter(ipid=7, alpha=0.5, ax=None, name="submat-all"):
     ax.text(0.30, 0.80, f"$r$ = {r:5.2f}\n$p$ = {p:5.2g}",
             transform=ax.transAxes, fontsize=8)
 
-    # Annotate C (index 0) and G (index 7); offsets in points keep labels clear
-    annot_notes = {'C': (0, (5, 15)), 'G': (7, (-20, -8))}
+    # Annotate C (index 0), C# (index 1), and G (index 7); offsets in points keep labels clear
+    annot_notes = {'C': (0, (5, 15)), 'G': (7, (-20, -8)), 'C#': (1, (15, -3))}
     arrowprops = dict(arrowstyle='->', color='0.3',
                       connectionstyle='arc3,rad=0.15')
     for note, (i, (dx, dy)) in annot_notes.items():
@@ -945,7 +333,7 @@ def plot_protein_conservation(uniprot_rsa, ax_bars, ax_scatter):
     Top (ax_bars): per-residue sequence identity as a stripped bar plot.
     Bottom (ax_scatter): identity vs mean RSA scatter with regression line.
     """
-    base = PATH_BLAST_MAFFT / uniprot_rsa
+    base = PATH_PROTEIN / uniprot_rsa
     df_cons = pd.read_csv(base / f"{uniprot_rsa}_conservation.csv")
     df_rsa  = pd.read_csv(base / f"{uniprot_rsa}_rsa_vs_conservation.csv")
 
@@ -994,7 +382,7 @@ def plot_contact_map(uniprot_contact, dist_threshold=8, ax=None,
         fig, ax = plt.subplots(figsize=(4, 4))
 
     dist = np.load(
-        PATH_BLAST_MAFFT / uniprot_contact /
+        PATH_PROTEIN / uniprot_contact /
         f"{uniprot_contact}_ca_distances.npy"
     )
     contact = (dist < dist_threshold).astype(float)
@@ -1025,7 +413,296 @@ def plot_cov_heatmap(meter, ax=None, fig=None):
     ax.set_title("H  Melody Covariance", loc='center', fontweight='bold')
 
 
-def new_fig2(uniprot_rsa="P00004", uniprot_contact="P0AA25",
+def plot_key_finding(ax='', pid=0.85):
+    if isinstance(ax, str):
+        fig, ax = plt.subplots()
+    path = PATH_FIG_DATA.joinpath(f"note_stability_key_finding_{pid:4.2f}.npy")
+    data = np.load(path)
+    N_arr = np.concatenate([np.arange(2, 10, 2), np.arange(10, 55, 5)])
+    lbls = ['First Notes', 'Most Conserved Notes', 'Least Conserved Notes']
+    col = ['k'] + sns.color_palette()[:2]
+    Y = []
+    for i, c in enumerate(col):
+        ym = np.nanmean(data[:,i], axis=0)
+        ys = np.nanstd(data[:,i], axis=0)
+        yse = ys / len(data)**0.5
+        ax.plot(N_arr, ym, '-', c=c, label=lbls[i])
+        ax.errorbar(N_arr, ym, yerr=yse, color=c, fmt='')
+
+        Y.append(ym)
+
+    print(np.round(Y[1] / Y[2], 2))
+
+    xlim = ax.get_xlim()
+    ax.plot(xlim, [1/12]*2, ':k', label='random')
+    ax.set_xlim(xlim)
+
+    ax.legend(bbox_to_anchor=(0.4, 0.5), frameon=False, fontsize=8)
+    ax.set_xlabel("Number of eighth notes used to estimate key")
+    ax.set_ylabel("Proportion correct")
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+
+
+def plot_submat_graph(letters, mat, norm=True, ax='', prune=0.001, edge='rel', color=False, mode=None):
+    if isinstance(ax, str):
+        fig, ax = plt.subplots()
+
+    # Get a copy to prevent overwriting original
+    mat = mat.copy()
+
+    # Reorder matrix to get label positions correct
+    order = np.roll(np.arange(12), -4)[::-1]
+    mat = mat[order][:,order]
+
+    # Set uncommon notes to zero to avoid outliers due to poor statistics
+    if prune > 0:
+        base_count = np.diag(mat)
+        base_prob = base_count / np.nansum(base_count)
+        idx = np.where(base_prob < prune)
+
+    if norm:
+        # Get log-odds
+        mat = SM.obs_mat_to_log_odds(mat)
+
+    if prune > 0:
+        for i in idx:
+            mat[i] = np.nan
+            mat[:,i] = np.nan
+
+    # Remove self edges
+    np.fill_diagonal(mat, 0)
+
+    # Create graph
+    G = nx.from_numpy_array(mat, create_using=nx.DiGraph)
+
+    # Get weights for edges
+    weights = np.array([x for x in mat.T.ravel() if x != 0])
+
+    # Assign new weight sizes based on an ordinal scale
+    nweight = 14
+    weight_cat = np.logspace(-0.5, 1, nweight+1)
+    mask = np.isnan(weights)
+    wmin, wmax = np.nanmin(weights), np.nanmax(weights)
+    weight_class = np.digitize(weights, np.linspace(wmin-0.01, wmax+0.01, nweight))
+    edge_weights = weight_cat[weight_class]
+    # Set nan weights to zero weight
+    edge_weights[mask] = 0
+
+    if color:
+        i, j = np.where(mat.T != 0)
+        sub_dist = np.abs(i - j).astype(int)
+        sub_dist = np.min([sub_dist, np.abs(12 - sub_dist)], axis=0)
+        col = np.array(sns.color_palette())[sub_dist]
+    else:
+        col = 'grey'
+        col = [0.6]*3
+
+    if len(letters) == 12:
+        lbls = {i:l for i, l in zip(order, chromatic_notes)}
+    else:
+        lbls = {i:l for i, l in zip(order, letters)}
+
+    if not isinstance(mode, type(None)):
+        nodelist = order[mode]
+        lbls = {i:chromatic_notes[j] for i, j in zip(nodelist, mode)}
+    else:
+        nodelist = order.copy()
+
+    pos = nx.circular_layout(G)
+    nx.draw_networkx_nodes(G, pos, node_size=500, node_color='skyblue', ax=ax,
+                           edgecolors=[0.1]*3, nodelist=nodelist)
+    nx.draw_networkx_edges(G, pos, edge_color=col, arrows=True,
+                           width=edge_weights, arrowstyle='-', min_source_margin=10,
+                           min_target_margin=10, ax=ax)
+
+    nx.draw_networkx_labels(G, pos, lbls, ax=ax)
+
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+
+### Plot substitution rate vs substitution distance
+def plot_sub_dist_sub_rate(data=None, ipid=7, ax='', alpha=0.5):
+    if isinstance(ax, str):
+        fig, ax = plt.subplots(1,2,figsize=(12,5))
+    X = np.arange(1, 14)
+
+    path = PATH_FIG_DATA.joinpath(f"mint_dist_tunes.npy")
+    mint = np.load(path)
+
+    ax[0].plot(mint[0][:X.size], (mint[1] / mint[1].sum())[:X.size], '-k', label='Interval distribution', alpha=0.9, fillstyle='none')
+
+    path = PATH_FIG_DATA.joinpath(f"sub_dist_all.npy")
+    Y, Y2 = np.load(path)[ipid]
+
+    ax[0].plot(X, Y / np.sum(Y), '-o', label='TheSession', alpha=0.9, fillstyle='none')
+    ax[1].plot(X, Y2, '-o', label='TheSession')
+
+    print("Correlation with M-int distribution:")
+    print(pearsonr(Y, mint[1][:X.size]))
+
+    print("Correlation with M-int:")
+    print(pearsonr(Y, X))
+
+    xlim = ax[1].get_xlim()
+    slope, intercept, r, p = linregress(X, Y2)[:4]
+    sns.regplot(x=X, y=Y2, ax=ax[1], scatter=False, color='grey', line_kws={"alpha":0.7},
+                label=r"$r$ = " + f"{r:4.2f}" + "\n" + r"$p$ = " + f"{p:5.3f}")
+    print("Linear fit:")
+    print(slope, intercept, r, p)
+
+    ax[1].plot(xlim, [0,0], ':', color='grey')
+    ax[1].set_xlim(xlim)
+
+    # Annotate the three notable intervals discussed in the text:
+    # semitone (peak), tritone (dip below trend), octave (bump above trend).
+    # (label, text position (data coords), horizontal alignment)
+    annot = {1:  ("Semitone", (2.4, 0.90), 'left'),
+             6:  ("Tritone",  (6.0, -2.00), 'center'),
+             12: ("Octave",   (12.0, 0.45), 'center')}
+    for xi, (lbl, xytext, ha) in annot.items():
+        ax[1].annotate(lbl, xy=(xi, Y2[xi - 1]), xytext=xytext, ha=ha,
+                       fontsize=8, arrowprops=dict(arrowstyle='-', lw=0.7,
+                                                   color='k'))
+
+
+
+def plot_sub_dist_both(ax=''):
+    if isinstance(ax, str):
+        fig, ax = plt.subplots(1,2,figsize=(12,5))
+    plot_sub_dist_sub_rate(ax=ax)
+
+    X = np.arange(1, 12)
+    Y1 = np.loadtxt(PATH_DATA.joinpath("SavageFig/English.txt"), float)[:,1]
+    Y2 = np.loadtxt(PATH_DATA.joinpath("SavageFig/Japanese.txt"), float)[:,1]
+    ax[0].plot(X, Y1 / Y1.sum(), '-s', label='Bronson', alpha=0.9, fillstyle='none')
+    ax[0].plot(X, Y2 / Y2.sum(), '-^', label='Japanese', alpha=0.9, fillstyle='none')
+
+    for i in [0,1]:
+        ax[i].set_xlabel("Intervallic distance (semitones)")
+    ax[0].legend(loc='best', frameon=False, fontsize=8)
+    # Lower-left is empty on panel C (curve is high on the left), so the
+    # legend clears the octave annotation that sits at upper-right.
+    ax[1].legend(loc='lower left', frameon=False, fontsize=8)
+    ax[0].set_ylabel("Substitution Rate\n[Probability]")
+    ax[1].set_ylabel("Log-odds score")
+
+    for a in ax:
+        a.spines['right'].set_visible(False)
+        a.spines['top'].set_visible(False)
+
+
+
+def plot_bar_pos_sub_rate(ipid=7, alpha=0.5, redo=False, ax='',
+                          meter_list=['4/4', '6/8']):
+    if isinstance(ax, str):
+        fig, ax = plt.subplots(2,2, figsize=(11,7))
+        fig.subplots_adjust(wspace=0.4, hspace=0.4)
+        ax = ax.reshape(ax.size)
+
+    col = np.array(sns.color_palette("mako", n_colors=4))
+    for i, meter in enumerate(meter_list):
+        path = PATH_FIG_DATA.joinpath(f"bar_pos_rate-{meter.replace('/', '_')}.npy")
+        rate = np.load(path)[ipid]
+        X = np.linspace(0, 1, SUBDIV_METER[meter] + 1)[:-1]
+        width = 1 / SUBDIV_METER[meter] / 1.5
+        ax[i].bar(X, rate[0], width, color=col[HIERARCHY[meter]], alpha=0.7, ec='k')
+
+        # Manually add whiskers for confidence intervals
+        for j in range(SUBDIV_METER[meter]):
+            ax[i].plot([X[j]]*2, [rate[2,j], rate[3,j]], '-', color='grey')
+
+        ax[i].set_xticks(X)
+        ax[i].set_xticklabels(np.arange(X.size) + 1)
+        ax[i].set_ylim(0, ax[i].get_ylim()[1])
+        ax[i].set_xlabel("Position in Measure (eighth note)")
+        ax[i].set_ylabel("Substitution Rate")
+        ax[i].spines['right'].set_visible(False)
+        ax[i].spines['top'].set_visible(False)
+
+    handles = [Patch(color=c) for c in col[:3]]
+    lbls = ["Main beat", "2nd beat", "3rd beat"]
+    ax[0].legend(handles, lbls, frameon=False, loc='upper center', ncol=3,
+                 fontsize=8, handletextpad=0.5, columnspacing=1.0)
+
+
+def plot_bar_pos_rate_vs_hierarchy(ipid=7, ax=''):
+    if isinstance(ax, str):
+        fig, ax = plt.subplots()
+    col = np.array(sns.color_palette("mako", n_colors=4))
+    df = utils.load_hierarchy_stability_df(ipid)
+    df['hierarchy_label'] = df['hierarchy'].map({0: 'Main', 1: '2nd', 2: '3rd'})
+    sns.boxplot(x='hierarchy_label', y='rel_sub_rate', data=df, ax=ax, color='white',
+                showfliers=False, order=['Main', '2nd', '3rd'])
+    sns.stripplot(x='hierarchy_label', y='rel_sub_rate', data=df, ax=ax, hue='meter',
+                  order=['Main', '2nd', '3rd'], palette=METER_PALETTE)
+
+    r, p = pearsonr(*df[['hierarchy', 'rel_sub_rate']].values.T)
+    ax.text(0.05, 0.60, f"$r$ = {r:5.2f}\n$p$ = {p:5.2g}", transform=ax.transAxes, fontsize=8)
+
+    ax.set_xlabel("Metrical Hierarchy")
+    ax.set_ylabel("Substitution rate")
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    handles = [Line2D([], [], marker='o', color=METER_PALETTE[m], lw=0) for m in METER_LIST]
+    ax.legend(handles, METER_LIST, frameon=False, ncol=2, fontsize=8,
+              bbox_to_anchor=(0.75, 1.15), loc='upper right',
+              handlelength=1.0, columnspacing=0.8, handletextpad=0.4)
+
+
+def plot_bar_pos_rate_vs_stability(ipid=7, ax=''):
+    if isinstance(ax, str):
+        fig, ax = plt.subplots()
+    df = utils.load_hierarchy_stability_df(ipid)
+    sns.scatterplot(x='rel_stability', y='rel_sub_rate', data=df, hue='meter', ax=ax,
+                    palette=METER_PALETTE)
+    ax.plot(*df.loc[df.end_pos==1, ['rel_stability','rel_sub_rate']].values.T, 'ok', fillstyle='none', ms=10)
+    sns.regplot(x='rel_stability', y='rel_sub_rate', data=df, scatter=False, color=REG_LINE_COLOR, ax=ax)
+
+    r, p = pearsonr(*df[['rel_stability', 'rel_sub_rate']].values.T)
+    ax.text(0.25, 0.10, f"$r$ = {r:5.2f}\n$p$ = {p:6.4f}", transform=ax.transAxes, fontsize=8)
+
+    ax.set_xlabel("Rhythmic Strength")
+    ax.set_ylabel("Substitution Rate")
+
+    handles = [Line2D([], [], marker='o', color=METER_PALETTE[m], lw=0) for m in METER_LIST] + \
+              [Line2D([], [], marker='o', fillstyle='none', ms=10, color='k', lw=0)]
+    lbls = METER_LIST + ["End position"]
+    ax.legend(handles, lbls, frameon=False, ncol=2, fontsize=8,
+              bbox_to_anchor=(0.75, 1.15), loc='upper right',
+              handlelength=1.0, columnspacing=0.8, handletextpad=0.4)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
+def plot_cov_mat(fig, ax, mat, nbars=8, nanzero=False, cbar_lbl=''):
+    if nanzero:
+        mat[mat<10**-10] = np.nan
+    finite_vals = mat[np.isfinite(mat)]
+    vmax = float(np.max(np.abs(finite_vals))) if len(finite_vals) > 0 else 1.0
+    im = ax.imshow(mat, cmap='RdBu_r', vmin=-vmax, vmax=vmax)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.ax.get_yaxis().labelpad = 15
+    cbar.ax.set_ylabel(cbar_lbl, rotation=270, labelpad=14.0)
+
+    nstep = mat.shape[0] // nbars
+    ax.set_xticks(np.arange(mat.shape[0])[::nstep])
+    ax.set_xticklabels(np.arange(nbars) + 1)
+    ax.set_yticks(np.arange(mat.shape[0])[::nstep])
+    ax.set_yticklabels(np.arange(nbars) + 1)
+    ax.set_xlabel("Position (measures)")
+    ax.set_ylabel("Position (measures)")
+
+
+
+#######################################################################
+### Fig 2 :: Molecular vs Melodic Evolution
+
+def fig2(uniprot_rsa="P00004", uniprot_contact="P0AA25",
              pos_tune_id=222, pos_tune_part=0,
              dist_threshold=15,
              ipid=7, alpha=0.5,
@@ -1109,8 +786,11 @@ def new_fig2(uniprot_rsa="P00004", uniprot_contact="P0AA25",
     fig.savefig(PATH_FIG.joinpath("fig2.pdf"), bbox_inches="tight")
     
 
+#######################################################################
+### Fig 3 :: Hypotheses about Melodic Evolution
 
-def new_fig3(ipid=7, cov_meter="6/8", bar_meter="6/8"):
+
+def fig3(ipid=7, cov_meter="6/8", bar_meter="6/8"):
     fig = plt.figure(figsize=(8, 10), layout='constrained')
     subfigs = fig.subfigures(4, 2, hspace=0.10, wspace=0.06)
 
@@ -1148,6 +828,18 @@ def new_fig3(ipid=7, cov_meter="6/8", bar_meter="6/8"):
         bb = sf._subplotspec.get_position(fig)
         fig.text(bb.x0, bb.y1, lbl, fontsize=14, fontweight="bold",
                  va="top", ha="left", clip_on=False)
+
+    # Row labels: descriptive analysis names (one per row), placed to the
+    # left of column 0 in the same style as fig2.  These echo the order of
+    # the fig2 rows (mutability, substitution, position, covariance) without
+    # asserting the hypotheses, which belong in the Discussion.
+    row_labels = ["Key-finding", "Interval distance",
+                  "Metrical position", "Repetition"]
+    for row_idx, lbl in enumerate(row_labels):
+        bb = subfigs[row_idx, 0]._subplotspec.get_position(fig)
+        fig.text(bb.x0 - 0.035, (bb.y0 + bb.y1) / 2 + 0.025, lbl,
+                 fontsize=13, fontweight='bold',
+                 ha='center', va='center', rotation=90, clip_on=False)
 
     fig.savefig(PATH_FIG.joinpath("fig3.png"), bbox_inches="tight")
     fig.savefig(PATH_FIG.joinpath("fig3.pdf"), bbox_inches="tight")

@@ -15,7 +15,10 @@ from sklearn.metrics import roc_curve, roc_auc_score
 import statsmodels.api as sm
 
 from thesession.alignment import parts as PA
-from thesession.config import *
+from thesession.config import (
+    DANCE_LIST, HIERARCHY, HIERARCHY_DANCE, METER_LIST, MODES, PATH_FIG,
+    PATH_FIG_DATA, SUBDIV_DANCE, SUBDIV_METER, chromatic_notes, letters,
+)
 from thesession.io import tune_loader as load_tunes
 from thesession.viz import main_figs
 from thesession.io import savage_loader as savage
@@ -146,6 +149,7 @@ def plot_mutability_by_mode(mode_alg='exact_pent', ipid=7):
                      color=col_all, alpha=0.7, label='All notes')
         sns.regplot(x=frequency[idx_all], y=mutability[idx_all],
                     logx=True, scatter=False, color=col_all, ax=ax_scat)
+        r_all, p_all = pearsonr(np.log(frequency[idx_all]), mutability[idx_all])
 
         # Mode scale notes only
         idx_mode = mode_notes[np.isfinite(mutability[mode_notes]) &
@@ -154,12 +158,23 @@ def plot_mutability_by_mode(mode_alg='exact_pent', ipid=7):
                      color=col_mode, alpha=0.7, label=f'{mode.capitalize()} scale')
         sns.regplot(x=frequency[idx_mode], y=mutability[idx_mode],
                     logx=True, scatter=False, color=col_mode, ax=ax_scat)
+        r_mode, p_mode = pearsonr(np.log(frequency[idx_mode]), mutability[idx_mode])
+
+        # Correlation text, colour-matched to the regression lines
+        ax_scat.text(0.65, 0.55,
+                     f"$r$ = {r_all:5.2f}, $p$ = {p_all:5.2g}",
+                     transform=ax_scat.transAxes, fontsize=10,
+                     color=col_all)
+        ax_scat.text(0.65, 0.45,
+                     f"$r$ = {r_mode:5.2f}, $p$ = {p_mode:5.2g}",
+                     transform=ax_scat.transAxes, fontsize=10,
+                     color=col_mode)
 
         ax_scat.set_xlabel("Count")
         ax_scat.set_ylabel("Mutability")
         ax_scat.set_xscale('log')
         ax_scat.set_title(mode.capitalize())
-        ax_scat.legend(loc='best', frameon=False)
+        ax_scat.legend(loc='upper right', frameon=False)
 
         for a in [ax_count, ax_mut, ax_scat]:
             a.spines['right'].set_visible(False)
@@ -170,13 +185,16 @@ def plot_mutability_by_mode(mode_alg='exact_pent', ipid=7):
 
 
 #######################################################################
-### SI Fig 3 :: Overall substitution graph (TheSession tune parts)
+### SI Fig 3 :: Substitution graphs - normalization and mode separation
 
 
-def plot_submat_overall(prune=0.01, ipid=7):
+def plot_submat_comparison(prune=0.01, ipid=7, mode_alg='exact_pent'):
     """
-    Unnormalized and normalized substitution graphs for TheSession tune
-    parts, pooled across all modes.
+    Three-tier comparison of pitch substitution graphs:
+      Row A: Bronson British/American (Savage), absolute and normalized rate.
+      Row B: TheSession pooled across all modes, absolute and normalized rate.
+      Row C: TheSession normalized log-odds graphs, separated by mode
+             (major, minor, mixolydian, dorian).
 
     Parameters
     ----------
@@ -184,26 +202,59 @@ def plot_submat_overall(prune=0.01, ipid=7):
         Notes with a marginal frequency below this threshold are suppressed.
         Default is 0.01.
     ipid : int, optional
-        Index into the PID-threshold axis of the saved matrix array.
+        Index into the PID-threshold axis of TheSession matrix arrays.
         Index 7 corresponds to PID = 0.85.  Default is 7.
+    mode_alg : str, optional
+        Mode-detection algorithm label used in the figure-data filename.
     """
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    fig.subplots_adjust(wspace=0.3)
+    fig = plt.figure(figsize=(10,14))
+    gs = GridSpec(6, 2, figure=fig, hspace=0.15, wspace=0.2, height_ratios=[1,.1,1,.1,1,1])
+    ax_A = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
+    ax_B = [fig.add_subplot(gs[2, 0]), fig.add_subplot(gs[2, 1])]
+    ax_C = [fig.add_subplot(gs[i, j]) for i in [4,5] for j in [0,1]]
 
-    path_mat = PATH_FIG_DATA.joinpath(f"submat-all.npy")
-    mat = np.load(path_mat)[ipid]
     letters = np.arange(12)
 
-    main_figs.plot_submat_graph(letters, mat, ax=ax[0], norm=False, prune=prune)
-    main_figs.plot_submat_graph(letters, mat, ax=ax[1], norm=True, prune=prune)
-    ax[0].set_title("Absolute Rate")
-    ax[1].set_title("Normalized Rate")
+    # --- Row A: Savage Bronson (absolute and normalized) ---
+    mat_sav = np.load(PATH_FIG_DATA.joinpath("submat-savage_english.npy"))
+    main_figs.plot_submat_graph(letters, mat_sav, ax=ax_A[0], norm=False, prune=prune)
+    main_figs.plot_submat_graph(letters, mat_sav, ax=ax_A[1], norm=True, prune=prune)
+    ax_A[0].set_title("Absolute Rate")
+    ax_A[1].set_title("Normalized Rate")
 
-    for a, lbl in zip(ax, 'AB'):
-        a.text(-0.10, 1.00, lbl, transform=a.transAxes, fontsize=16, fontweight='bold')
+    # --- Row B: TheSession pooled across all modes ---
+    mat_all = np.load(PATH_FIG_DATA.joinpath("submat-all.npy"))[ipid]
+    main_figs.plot_submat_graph(letters, mat_all, ax=ax_B[0], norm=False, prune=prune)
+    main_figs.plot_submat_graph(letters, mat_all, ax=ax_B[1], norm=True, prune=prune)
+    ax_B[0].set_title("Absolute Rate")
+    ax_B[1].set_title("Normalized Rate")
 
-    fig.savefig(PATH_FIG.joinpath("si3_submat_overall.png"), bbox_inches='tight')
-    fig.savefig(PATH_FIG.joinpath("si3_submat_overall.pdf"), bbox_inches='tight')
+    # --- Row C: TheSession mode-specific normalized graphs ---
+    for i, (mode, scale) in enumerate(MODES.items()):
+        path_mat = PATH_FIG_DATA.joinpath(f"submat-{mode_alg}-{mode}.npy")
+        mat = np.load(path_mat)[ipid]
+        main_figs.plot_submat_graph(letters, mat, ax=ax_C[i], norm=True,
+                                    prune=prune, mode=scale)
+        ax_C[i].set_title(mode.capitalize())
+
+    # Row letters (A, B, C) anchored to the leftmost axes of each row
+    for ax_first, lbl in zip([ax_A[0], ax_B[0], ax_C[0]], "ABC"):
+        ax_first.text(-0.10, 1.05, lbl, transform=ax_first.transAxes,
+                      fontsize=18, fontweight='bold', va='top')
+
+    # Row labels on the left margin
+    row_labels = [
+        ("Bronson\n(Savage 2022)", ax_A[0]),
+        ("TheSession\n(all modes)", ax_B[0]),
+        ("TheSession\n(by mode)",   ax_C[0]),
+    ]
+    for lbl, ax in row_labels:
+        ax.text(-0.30, 0.5, lbl, transform=ax.transAxes,
+                fontsize=12, fontweight='bold',
+                ha='center', va='center', rotation=90)
+
+    fig.savefig(PATH_FIG.joinpath("si3_submat_comparison.png"), bbox_inches='tight')
+    fig.savefig(PATH_FIG.joinpath("si3_submat_comparison.pdf"), bbox_inches='tight')
 
 
 
@@ -390,176 +441,4 @@ def plot_cov_rep_all_meters(nbars=8):
 
     fig.savefig(PATH_FIG.joinpath("si6_cov_rep_all_meters.png"), bbox_inches='tight')
     fig.savefig(PATH_FIG.joinpath("si6_cov_rep_all_meters.pdf"), bbox_inches='tight')
-
-
-def load_hierachy_stability_df(ipid=7):
-    path = PATH_FIG_DATA.joinpath(f"onset_histograms.pkl")
-    stability = pickle.load(open(path, 'rb'))
-    cols = ['hierarchy', 'end_pos', 'meter', 'stability', 'rel_stability',
-            'sub_rate', 'rel_sub_rate']
-    data = []
-    for i, meter in enumerate(METER_LIST):
-        path = PATH_FIG_DATA.joinpath(f"bar_pos_rate-{meter.replace('/', '_')}.npy")
-        rate = np.load(path)[ipid]
-        stab_mean = np.mean(stability[meter][0])
-        for j, (r, s) in enumerate(zip(rate[0], stability[meter][0])):
-            data.append([HIERARCHY[meter][j], END_POS[meter][j],
-                         meter, s, s / stab_mean,
-                         r, r / np.mean(rate[0])])
-    return pd.DataFrame(data=data, columns=cols)
-
-
-def plot_bar_pos_rate_vs_hierarchy(ipid=7):
-    fig, ax = plt.subplots()
-    col = np.array(sns.color_palette("mako", n_colors=4))
-    df = load_hierachy_stability_df(ipid)
-    sns.boxplot(x='hierarchy', y='rel_sub_rate', data=df, ax=ax, color='white', showfliers=False)
-    sns.stripplot(x='hierarchy', y='rel_sub_rate', data=df, ax=ax, hue='meter')
-    ax.set_xlabel("Metrical hierarchy")
-    ax.set_ylabel("Relative substitution rate")
-
-
-def plot_bar_pos_rate_vs_stability(ipid=7):
-    fig, ax = plt.subplots()
-    df = load_hierachy_stability_df(ipid)
-#   for i, meter in enumerate(METER_LIST):
-    sns.scatterplot(x='rel_stability', y='rel_sub_rate', data=df, hue='meter')
-    sns.regplot(x='rel_stability', y='rel_sub_rate', data=df, scatter=False, color='k')
-    r, p = pearsonr(*df[['rel_stability', 'rel_sub_rate']].values.T)
-    print(r, p)
-    ax.set_xlabel("Metrical stability (onset probability)")
-    ax.set_ylabel("Relative substitution rate")
-    
-
-def plot_bar_pos_rate_corr():
-    fig, ax = plt.subplots()
-    pid_list = np.arange(0.5, 1, 0.05)
-    path = PATH_FIG_DATA.joinpath(f"bar_pos_rate_corr.npy")
-    corr = np.load(path)
-    ax.plot(pid_list, corr[:,0], label='Hierarchy')
-    ax.plot(pid_list, corr[:,1], label='Hierarchy + EndPos')
-    ax.plot(pid_list, corr[:,2], label='Stability')
-        
-        
-
-def mutability_vs_prevalence_savage(df):
-    languages = ['English', 'Japanese']
-    fig, ax = plt.subplots(1,2,figsize=(9,4))
-    for i, lang in enumerate(languages):
-        obs, letters, mat = savage.get_submat(df.loc[df.Language==lang])
-        mutability, frequency = calculate_mutability_and_frequency(mat)
-        idx = frequency > 100
-        sns.regplot(x=frequency[idx], y=mutability[idx], ax=ax[i])
-        ax[i].set_title(lang)
-        print(lang)
-        print(np.sum(idx))
-        print(utils.get_corr(np.log(frequency[idx]), mutability[idx], p=1))
-
-
-
-#######################################################################
-### Fig X :: Sub rate vs Sub dist by mode
-
-def plot_sub_dist_mode(ax='', mode_alg='exact_pent', ipid=7):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(figsize=(6,5))
-
-    X = np.arange(1, 14)
-    
-    for i, mode in enumerate(MODES.keys()):
-        path = PATH_FIG_DATA.joinpath(f"sub_dist_{mode_alg}_{mode}.npy")
-        Y, Y2 = np.load(path)[ipid]
-
-        ax.plot(X, Y2, '-o', label=mode)
-
-    ax.legend(loc='best', frameon=False)
-    ax.set_xlabel("Substitution distance (semitones)")
-    ax.set_ylabel("Normalized Rate")
-
-
-#######################################################################
-### Fig X :: Sub dist - M-int corr by PID
-
-
-def plot_sub_dist_mint_corr(ax='', mode_alg='exact_pent'):
-    if isinstance(ax, str):
-        fig, ax = plt.subplots(figsize=(6,5))
-    path = PATH_FIG_DATA.joinpath(f"mint_dist_tunes.npy")
-    mint = np.load(path)[1][:13]
-
-    pid_list = np.arange(0.5, 1, 0.05)
-
-    path = PATH_FIG_DATA.joinpath(f"sub_dist_all.npy")
-    Y_list = np.load(path)[:,1]
-    corr = np.array([utils.get_corr(Y, mint) for Y in Y_list])
-    ax.plot(pid_list, corr, label='All')
-
-    for i, mode in enumerate(MODES.keys()):
-        path = PATH_FIG_DATA.joinpath(f"sub_dist_{mode_alg}_{mode}.npy")
-        Y_list = np.load(path)[:,1]
-        corr = np.array([utils.get_corr(Y, mint) for Y in Y_list])
-        ax.plot(pid_list, corr, label=mode)
-
-    ax.set_xlabel("PID")
-    ax.set_ylabel("Corr(Sub rate, M-Int dist)")
-    ax.legend(loc='best', frameon=False)
-
-
-
-#######################################################################
-### Fig X :: bar rate vs dance type
-
-def plot_bar_rate_dance(ipid=7, max_bar=8):
-    fig, ax = plt.subplots(2,2)
-    ax = ax.reshape(ax.size)
-    X = np.arange(max_bar) + 1
-    col = [sns.color_palette()[(i-1)%4] for i in X]
-    width = 0.8
-    for i, dance in enumerate(DANCE_LIST):
-        path = PATH_FIG_DATA.joinpath(f"bar_rate-{dance}.npy")
-        bar_rate = np.load(path)[ipid]
-        ax[i].bar(X, bar_rate[0], width, color=col, alpha=0.7, ec='k')
-        # Manually add whiskers for confidence intervals
-        for j in range(max_bar):
-            ax[i].plot([X[j]]*2, [bar_rate[2,j], bar_rate[3,j]], '-', color='grey')
-        ax[i].set_title(dance)
-
-        
-def plot_bar_rate_meter(ipid=7, max_bar=8):
-    fig, ax = plt.subplots(2,2)
-    ax = ax.reshape(ax.size)
-    meter_list = ['4/4', '2/4', '6/8']
-    X = np.arange(max_bar) + 1
-    col = [sns.color_palette()[(i-1)%4] for i in X]
-    width = 0.8
-    for i, meter in enumerate(meter_list):
-        path = PATH_FIG_DATA.joinpath(f"bar_rate-{meter.replace('/', '_')}.npy")
-        bar_rate = np.load(path)[ipid]
-        print(bar_rate.shape)
-        ax[i].bar(X, bar_rate[0], width, color=col, alpha=0.7, ec='k')
-        # Manually add whiskers for confidence intervals
-        for j in range(max_bar):
-            ax[i].plot([X[j]]*2, [bar_rate[2,j], bar_rate[3,j]], '-', color='grey')
-        ax[i].set_title(meter)
-
-
-def plot_bar_rate_mode(ipid=7, max_bar=8):
-    fig, ax = plt.subplots(2,2)
-    ax = ax.reshape(ax.size)
-    mode_list = list(MODES.keys())
-    X = np.arange(max_bar) + 1
-    col = [sns.color_palette()[(i-1)%4] for i in X]
-    width = 0.8
-    for i, mode in enumerate(mode_list):
-        path = PATH_FIG_DATA.joinpath(f"bar_rate-{mode}.npy")
-        bar_rate = np.load(path)[ipid]
-        print(bar_rate.shape)
-        ax[i].bar(X, bar_rate[0], width, color=col, alpha=0.7, ec='k')
-        # Manually add whiskers for confidence intervals
-        for j in range(max_bar):
-            ax[i].plot([X[j]]*2, [bar_rate[2,j], bar_rate[3,j]], '-', color='grey')
-        ax[i].set_title(mode)
-
-        
-
 
