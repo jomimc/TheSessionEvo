@@ -115,7 +115,7 @@ def compute_distance_matrix(residues):
 
 def run_rsa_analysis(hits_csv, alignment_fasta, output_dir, cache_dir=None,
                      max_structures=50, include_query=False, conservation_csv=None,
-                     redo=False):
+                     prefix=None, redo=False):
     """
     Compute mean RSA per reference position from AlphaFold structures.
 
@@ -127,7 +127,8 @@ def run_rsa_analysis(hits_csv, alignment_fasta, output_dir, cache_dir=None,
     """
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    output_path = out_dir / "rsa_vs_conservation.csv"
+    prefix = prefix or out_dir.name
+    output_path = out_dir / f"{prefix}_rsa_vs_conservation.csv"
 
     if output_path.exists() and not redo:
         print(f"  [{out_dir.name}] Loading cached RSA")

@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from thesession.io import tune_loader as load_tunes
 from thesession.io import tune_parser as TP
-from thesession.config import *
+from thesession.config import PATH_CACHE, PATH_DATA
 from thesession import utils
 
 
@@ -395,6 +395,7 @@ def get_all_parts_thesession(df, tunes, redo=False):
         print("Time taken: ", (time() - ts) / 60)
         pickle.dump(parts_out, open(path, 'wb'))
         df_parts = pd.DataFrame(data=rows, columns=cols)
+        df_parts.to_pickle(path_df)
         return df_parts, parts_out
 
 
