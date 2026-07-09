@@ -1,2 +1,13 @@
 *.pyc
 *.swp
+*.egg-info
+Src_backup
+docs
+Data
+Cache
+FigureData
+Figures
+MMseqs
+ProteinData
+Paper
+Zenodo
