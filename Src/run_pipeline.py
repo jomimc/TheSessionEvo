@@ -1,11 +1,12 @@
 from thesession.config import PATH_CACHE, PATH_FIG, PATH_FIG_DATA, PATH_MMSEQS
 from thesession.viz import main_figs, si_figs
 from thesession.pipeline.param_search import run_parameter_optimization
-from thesession.pipeline.fig1 import data_for_fig1
-from thesession.pipeline.fig2 import run_main_alignments, data_for_fig2
-from thesession.pipeline.fig3 import data_for_fig3
-from thesession.pipeline.fig4 import data_for_fig4
-from thesession.pipeline.fig5 import data_for_fig5
+from thesession.pipeline.mmseqs import run_main_alignments
+from thesession.pipeline.identification import data_for_identification
+from thesession.pipeline.mutability import data_for_mutability
+from thesession.pipeline.substitution import data_for_substitution
+from thesession.pipeline.position import data_for_position
+from thesession.pipeline.covariance import data_for_covariance
 from thesession.pipeline.protein import data_for_protein_comparison
 
 
@@ -38,16 +39,18 @@ def make_figures():
 ### Creates and saves data for figures.
 def main(redo=False):
     """
-    Run the complete analysis pipeline for all figures.
+    Run the complete analysis pipeline, then render the figures.
 
-    Calls each figure-data function in sequence:
+    Runs each analysis stage in sequence (the manuscript has three main
+    figures, but each analysis feeds several published panels, so the stages
+    are named by analysis rather than by figure):
 
-    * Figure 1: tune-family identification ROC curves.
-    * Main alignments: shared prerequisite for Figures 2–5.
-    * Figure 2: note prevalence, mutability, key-finding.
-    * Figure 3: note substitution distances.
-    * Figure 4: sequence-position effects.
-    * Figure 5: sequence covariance.
+    * Identification: tune-family ROC curves (main Fig. 1).
+    * Main alignments: shared prerequisite for every stage below.
+    * Mutability: note prevalence, mutability, key-finding.
+    * Substitution: note substitution distances.
+    * Position: sequence-position effects.
+    * Covariance: sequence covariance and repetition structure.
 
     Parameters
     ----------
@@ -69,23 +72,23 @@ def main(redo=False):
     print("\n=== Parameter optimisation ===")
     run_parameter_optimization(redo=redo)
 
-    print("\n=== Fig 1: Identifying similar tunes ===")
-    data_for_fig1(redo=redo)
+    print("\n=== Identification: similar-tune ROC (Fig. 1) ===")
+    data_for_identification(redo=redo)
 
-    print("\n=== Running main alignments ===")
+    print("\n=== Main alignments (shared prerequisite) ===")
     df, tunes, df_parts, parts_data, res, res0, mismatches = run_main_alignments(redo=redo)
 
-    print("\n=== Fig 2: Note prevalence, mutability, key-finding ===")
-    data_for_fig2(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
+    print("\n=== Mutability: prevalence, mutability, key-finding ===")
+    data_for_mutability(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
 
-    print("\n=== Fig 3: Note substitutions ===")
-    data_for_fig3(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
+    print("\n=== Substitution: note substitution distances ===")
+    data_for_substitution(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
 
-    print("\n=== Fig 4: Sequence position effects ===")
-    data_for_fig4(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
+    print("\n=== Position: sequence-position effects ===")
+    data_for_position(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=redo)
 
-    print("\n=== Fig 5: Sequence covariance ===")
-    data_for_fig5(res0, parts_data, redo=redo)
+    print("\n=== Covariance: position covariance and repetition ===")
+    data_for_covariance(res0, parts_data, redo=redo)
 
     print("\n=== Rendering figures ===")
     make_figures()

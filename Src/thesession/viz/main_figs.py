@@ -48,7 +48,7 @@ BLOSUM62_AA = list("CSTAGPDEQNHRKMILVWYF")           # display order
 ### Fig 1 :: tune family recognition and methods
 
 
-### First run "data_for_fig1" in "main.py"
+### First run "data_for_identification" in "main.py"
 def plot_roc_curve():
     fig, ax = plt.subplots(figsize=(4,4))
     path = PATH_FIG_DATA.joinpath("fig1_roc_curve_data.pkl")

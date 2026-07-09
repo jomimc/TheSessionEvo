@@ -1,4 +1,8 @@
-"""Sequence covariance (Fig. 5): position-position covariance and repetition matrices."""
+"""Sequence covariance: position-position covariance and repetition matrices.
+
+Feeds published Fig. 2 and Fig. 3 (covariance/repetition panels) and SI6
+(covariance and repetition across all meters).
+"""
 
 from collections import Counter
 
@@ -7,16 +11,16 @@ import numpy as np
 from thesession.config import METER_LIST, PATH_FIG_DATA
 from thesession.alignment import parts as PA
 from thesession import utils
-from thesession.pipeline.fig1 import get_uniq
+from thesession.pipeline.identification import get_uniq
 
 
 ###################################################################################################
-### Sequence covariance (Fig. 5)
+### Sequence covariance
 
-    # Run analyses for Fig 5:
+    # Covariance analyses:
     #    covariance and repetition (separate by mode, dance, mode and dance, all and most common 100 tunes)
     #   don't separate by pid. use all available data to get a strong signal
-def data_for_fig5(res0, parts_data, redo=False):
+def data_for_covariance(res0, parts_data, redo=False):
     """
     Compute and save all data needed for Figure 5 (covariance analysis).
 

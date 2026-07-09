@@ -1,4 +1,4 @@
-"""Note substitutions (Fig. 3): substitution distance rates and log odds."""
+"""Note substitutions: substitution distance rates and log odds (feeds published Fig. 3)."""
 
 from collections import Counter
 
@@ -9,15 +9,15 @@ from thesession.config import MODES, PATH_FIG_DATA
 from thesession.alignment import parts as PA
 from thesession.io import savage_loader as savage
 from thesession import utils
-from thesession.pipeline.fig2 import note_prevalence_mutability
+from thesession.pipeline.mutability import note_prevalence_mutability
 
 
 ###################################################################################################
-### Note substitutions (Fig. 3)
+### Note substitutions
 
-    # Run analyses for Fig 3:
+    # Substitution analyses:
     #    Substitution rates + log odds, sub distance (separate by mode, dance, mode and dance, all PID)
-def data_for_fig3(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False, mode_alg='exact_pent'):
+def data_for_substitution(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False, mode_alg='exact_pent'):
     """
     Compute and save all data needed for Figure 3 (substitution analysis).
 

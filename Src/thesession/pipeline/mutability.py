@@ -1,9 +1,12 @@
-"""Note prevalence, mutability, and key-finding (Fig. 2)."""
+"""Note prevalence, mutability, and key-finding.
+
+Feeds published Fig. 2 (note mutability, substitution-matrix heatmap), Fig. 3
+(key-finding accuracy), and SI2 (mutability by mode).
+"""
 
 from collections import Counter
 from functools import partial
 from multiprocessing import Pool
-import time
 
 import numpy as np
 from sklearn.metrics import f1_score, confusion_matrix
@@ -13,99 +16,16 @@ from thesession.config import MODES, N_PROC, PATH_FIG_DATA
 from thesession.io import tune_loader as load_tunes
 from thesession.analysis import key_mode as KMF
 from thesession.alignment import parts as PA
-from thesession.structure import part_separation as PS
 from thesession.io import savage_loader as savage
-from thesession.io import seq_io
 from thesession.analysis import substitution as SM
 from thesession import utils
-from thesession.pipeline.fig1 import get_uniq
-from thesession.pipeline.mmseqs import load_mmseqs
+from thesession.pipeline.identification import get_uniq
 
 
 ###################################################################################################
-### Note prevalence, mutability and key-finding (Fig. 2)
-
-### Runs on: TheSession
-### Loads the full cleaned dataset
-### Separates tunes into parts
-### As above, but with parts instead of tunes
-###     Parts > tchroma > letters > fasta > run mmseqs
-### Loads mmseqs results and analyses similar parts
-### Saves data in the format needed for figures
-def run_main_alignments(redo=False):
-    """
-    Run the full TheSession part-alignment pipeline.
-
-    This is the central computation step for Figures 2–5.  It:
-
-    1. Loads the cleaned TheSession dataset (``~2 h`` first run).
-    2. Splits each setting into structural parts.
-    3. Writes parts to FASTA and runs MMseqs2.
-    4. Prunes hits from duplicate parts.
-    5. Annotates and filters all surviving hit pairs.
-
-    Parameters
-    ----------
-    redo : bool, optional
-        Passed to every sub-step; if ``True``, all caches are
-        invalidated and recomputed.  Default is ``False``.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        Cleaned setting-level metadata.
-    tunes : dict
-        Music21-parsed feature dicts keyed by ``setting_id``.
-    df_parts : pandas.DataFrame
-        Part-level metadata (one row per extracted part).
-    parts_data : dict
-        Part feature dicts keyed by ``part_id``.
-    res : pandas.DataFrame
-        Full annotated MMseqs2 hit table (all surviving pairs).
-    res0 : pandas.DataFrame
-        Filtered hit table (equal duration, equal meter, 0.5 < fident < 1).
-    mismatches : pandas.DataFrame
-        Per-pair alignment statistics (substitutions, matches, etc.).
-    """
-    # Load a cleaned dataset
-    # (code takes about 2 hours to run)
-    print(f"Loading data (redo is {'on' if redo else 'off'})")
-    t0 = time.time()
-    df, tunes = load_tunes.load_thesession_data(redo=redo)
-    print(f"  Done in {time.time()-t0:.1f}s")
-
-    # Extract parts
-    print(f"Splitting tunes into parts")
-    t0 = time.time()
-    df_parts, parts_data = PS.get_all_parts_thesession(df, tunes, redo=redo)
-    print(f"  Done in {time.time()-t0:.1f}s")
-
-    # Write parts to fasta
-    print(f"Writing to fasta")
-    seq_io.write_parts_thesession(parts_data)
-
-    # (Run and ) load mmseqs2 results
-    ### CHEKC THIS!!! PROBABLY DOES NOT WORK!!!
-    t0 = time.time()
-    res = load_mmseqs(parts_data, "thesession_parts", redo=redo, annotate=False, save_fasta=False)
-    print(f"  mmseqs gave {len(res)} tune pairs ({time.time()-t0:.1f}s)")
-
-    res = PA.prune_identical_parts(res, parts_data)
-    print(f"Pruning identical parts leaves {len(res)} tune pairs")
-
-    # Align parts using new algorithm
-    print("Annotating alignments...")
-    t0 = time.time()
-    res, res0, mismatches = PA.annotate_res(df, df_parts, res, parts_data, redo=redo)
-    print(f"  Final set: {len(res0)} tune pairs ({time.time()-t0:.1f}s)")
-
-    return df, tunes, df_parts, parts_data, res, res0, mismatches
-
-
-
-# Run analyses for Fig 2:
-#    Note prevalence, mutability, key finding, IDyOM
-def data_for_fig2(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False):
+### Note prevalence, mutability and key-finding
+### (The shared alignment step run_main_alignments now lives in pipeline/mmseqs.py.)
+def data_for_mutability(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False):
     """
     Compute and save all data needed for Figure 2.
 

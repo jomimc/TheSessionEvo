@@ -1,10 +1,14 @@
-"""MMseqs2 all-vs-all alignment: run and load results."""
+"""MMseqs2 all-vs-all alignment: run/load results and build the main aligned dataset."""
 
 import shutil
 from subprocess import Popen, PIPE
+import time
 
 from thesession.config import MMSEQS_BIN, PATH_MMSEQS
 from thesession.io import seq_io
+from thesession.io import tune_loader as load_tunes
+from thesession.alignment import parts as PA
+from thesession.structure import part_separation as PS
 from thesession.analysis import substitution as SM
 
 
@@ -129,3 +133,79 @@ def load_mmseqs(df, dataset, ref='setting_id', redo=False, annotate=True, save_f
     else:
         print(f"Loading cached mmseqs results for '{dataset}'")
     return seq_io.load_mmseqs_pairwise(df, dataset, annotate)
+
+
+###################################################################################################
+### Build the main aligned dataset (shared prerequisite for every analysis)
+
+### Runs on: TheSession
+### Loads the full cleaned dataset, separates tunes into parts,
+### writes parts to fasta, runs mmseqs, and annotates the surviving hit pairs.
+def run_main_alignments(redo=False):
+    """
+    Run the full TheSession part-alignment pipeline.
+
+    This is the central computation step shared by every downstream analysis
+    (mutability, substitution, position, covariance).  It:
+
+    1. Loads the cleaned TheSession dataset (``~2 h`` first run).
+    2. Splits each setting into structural parts.
+    3. Writes parts to FASTA and runs MMseqs2.
+    4. Prunes hits from duplicate parts.
+    5. Annotates and filters all surviving hit pairs.
+
+    Parameters
+    ----------
+    redo : bool, optional
+        Passed to every sub-step; if ``True``, all caches are
+        invalidated and recomputed.  Default is ``False``.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        Cleaned setting-level metadata.
+    tunes : dict
+        Music21-parsed feature dicts keyed by ``setting_id``.
+    df_parts : pandas.DataFrame
+        Part-level metadata (one row per extracted part).
+    parts_data : dict
+        Part feature dicts keyed by ``part_id``.
+    res : pandas.DataFrame
+        Full annotated MMseqs2 hit table (all surviving pairs).
+    res0 : pandas.DataFrame
+        Filtered hit table (equal duration, equal meter, 0.5 < fident < 1).
+    mismatches : pandas.DataFrame
+        Per-pair alignment statistics (substitutions, matches, etc.).
+    """
+    # Load a cleaned dataset
+    # (code takes about 2 hours to run)
+    print(f"Loading data (redo is {'on' if redo else 'off'})")
+    t0 = time.time()
+    df, tunes = load_tunes.load_thesession_data(redo=redo)
+    print(f"  Done in {time.time()-t0:.1f}s")
+
+    # Extract parts
+    print(f"Splitting tunes into parts")
+    t0 = time.time()
+    df_parts, parts_data = PS.get_all_parts_thesession(df, tunes, redo=redo)
+    print(f"  Done in {time.time()-t0:.1f}s")
+
+    # Write parts to fasta
+    print(f"Writing to fasta")
+    seq_io.write_parts_thesession(parts_data)
+
+    # (Run and ) load mmseqs2 results
+    t0 = time.time()
+    res = load_mmseqs(parts_data, "thesession_parts", redo=redo, annotate=False, save_fasta=False)
+    print(f"  mmseqs gave {len(res)} tune pairs ({time.time()-t0:.1f}s)")
+
+    res = PA.prune_identical_parts(res, parts_data)
+    print(f"Pruning identical parts leaves {len(res)} tune pairs")
+
+    # Align parts using new algorithm
+    print("Annotating alignments...")
+    t0 = time.time()
+    res, res0, mismatches = PA.annotate_res(df, df_parts, res, parts_data, redo=redo)
+    print(f"  Final set: {len(res0)} tune pairs ({time.time()-t0:.1f}s)")
+
+    return df, tunes, df_parts, parts_data, res, res0, mismatches

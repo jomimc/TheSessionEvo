@@ -1,4 +1,8 @@
-"""Sequence position (Fig. 4): within-bar and across-bar substitution rates."""
+"""Sequence position: within-bar and across-bar substitution rates.
+
+Feeds published Fig. 3 (within-bar rate vs. metrical hierarchy) and SI5
+(bar-position rate by meter and dance type).
+"""
 
 from collections import Counter
 import pickle
@@ -13,12 +17,12 @@ from thesession import utils
 
 
 ###################################################################################################
-### Sequence position (Fig. 4)
+### Sequence position
 
-    # Run analyses for Fig 4:
+    # Position analyses:
     #    Within-measure / across-measure rates, hierarchy and prevalence, (separate by mode, dance, mode and dance, all PID)
     #    covariance and repetition (separate by mode, dance, mode and dance, all and most common 100 tunes)
-def data_for_fig4(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False):
+def data_for_position(df, tunes, df_parts, parts_data, res, res0, mismatches, redo=False):
     """
     Compute and save all data needed for Figure 4 (positional analysis).
 

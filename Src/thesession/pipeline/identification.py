@@ -1,4 +1,4 @@
-"""Identifying similar tunes (Fig. 1A): ROC curves for MMseqs2 tune-family identification."""
+"""Identifying similar tunes: ROC curves for MMseqs2 tune-family identification (Fig. 1A)."""
 
 import pickle
 
@@ -21,7 +21,7 @@ from thesession.pipeline.mmseqs import load_mmseqs
 ### Runs mmseqs on tune collections (fasta file)
 ### Loads mmseqs results and calculates roc curves and auc
 ### Saves data in the format needed for figures
-def data_for_fig1(redo=False):
+def data_for_identification(redo=False):
     """
     Produce ROC-curve data for Figure 1 (tune-family identification).
 
