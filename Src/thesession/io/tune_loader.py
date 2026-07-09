@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from thesession.config import *
+from thesession.config import PATH_CACHE, PATH_DATA
 from thesession.io import tune_parser as TP
 from thesession import utils
 
@@ -501,42 +501,4 @@ def update_meertens_df(df, data):
     df['key'] = [TP.get_key_idx(data[i]['key']) for i in df.index]
     df['tchroma_octave'] = [(data[i]['midi'] - k) for i, k in zip(df.index, df.key)]
     df['tchroma'] = [(data[i]['midi'] - k) % 12 for i, k in zip(df.index, df.key)]
-    return df
-
-
-
-######################################################################
-### Bronson
-
-
-### Load Bronson data
-def load_bronson_data(redo=False):
-    """
-    Load the Bronson (British/American folk song) dataset from a
-    pre-processed pickle file.
-
-    The function reads the merged summary pickle, computes
-    key-transposed MIDI pitch (``tmidi``), and adds ``tchroma_octave``
-    and ``tchroma`` columns.  Rows where ``tmidi`` is null (failed
-    transposition) are dropped.
-
-    Parameters
-    ----------
-    redo : bool, optional
-        Not used; included for API consistency with other loaders.
-        Default is ``False``.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        Cleaned Bronson DataFrame with columns ``tmidi``,
-        ``tchroma_octave``, and ``tchroma`` added.
-    """
-    path = PATH_DATA.joinpath('Bronson/merged_summary.pkl')
-    df = pd.read_pickle(path)
-    # Transpose absolute MIDI pitch by the stored key value
-    df['tmidi'] = df['midi'] - df['key']
-    df = df.loc[df.tmidi.notnull()]
-    df['tchroma_octave'] = [a.astype(int) for a in df['tmidi']]
-    df['tchroma'] = [a.astype(int) for a in df['tmidi'] % 12]
     return df

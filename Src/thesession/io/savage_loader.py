@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 
-from thesession.config import *
+from thesession.config import PATH_CACHE, PATH_DATA, letters, note_map
 from thesession.io import tune_loader as load_tunes
 from thesession.analysis import optimization as OP
 from thesession.alignment import pairwise as seq_align
@@ -95,49 +95,6 @@ def load_savage_df(full=False, redo=False, keep_japanese=False):
 
     # Save to pickle
     df.to_pickle(path)
-
-    return df
-
-
-def load_checked_subset():
-    """
-    Load the manually-verified subset of Savage–Fitch matched song pairs.
-
-    Returns
-    -------
-    df : pd.DataFrame
-        The matched-songs CSV enriched with two ``tchroma`` columns:
-        ``tchroma_savage`` (pitch-class sequence from the Savage dataset) and
-        ``tchroma_fitch`` (pitch-class sequence parsed from the Bronson/Fitch
-        dataset, transposed to a common tonic).  Also includes boolean columns
-        ``len_same`` and ``exact_same`` indicating sequence-level agreement.
-
-    Notes
-    -----
-    Rows where ``IndexFitch`` is null are dropped before merging.  The Fitch
-    sequences are transposed by subtracting the stored key value (mod 12) so
-    that both sequences share the same pitch-class zero reference.
-    """
-    dfb = load_tunes.load_bronson_data()
-    dfs = load_savage_df()
-
-    df = pd.read_csv('../savage_matched_songs.csv')
-    df = df.loc[df.IndexFitch.notnull()]
-    df['IndexFitch'] = df['IndexFitch'].astype(int)
-
-    df['tchroma_savage'] = dfs.loc[df.Index, 'tchroma'].values
-
-    key = dfb.loc[df.IndexFitch, 'key']
-    midi = []
-    for i in df.IndexFitch:
-        data = dfb.loc[i].to_dict()
-        data['key'] = chromatic_notes[int(data['key'])]
-        midi.append(TP.parse_thesession_tune(data, 'music21', expandRepeats=False)['midi'])
-    # Transpose each Fitch melody to tonic-relative pitch classes (mod 12)
-    df['tchroma_fitch'] = [((np.array(m) - k) % 12).astype(int) for m, k in zip(midi, key)]
-
-    df['len_same'] = [len(x) == len(y) for x, y in zip(df['tchroma_savage'], df['tchroma_fitch'])]
-    df['exact_same'] = [len(x) == len(y) and np.all(x == y) for x, y in zip(df['tchroma_savage'], df['tchroma_fitch'])]
 
     return df
 

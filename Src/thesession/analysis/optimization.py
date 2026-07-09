@@ -12,7 +12,7 @@ from thesession.io import savage_loader as savage
 from thesession.alignment import pairwise as seq_align
 from thesession.io import seq_io
 from thesession.analysis import substitution as SM
-from thesession.config import *
+from thesession.config import MMSEQS_BIN, PATH_CACHE, PATH_MMSEQS
 
 
 
@@ -602,38 +602,3 @@ def load_results_savage():
     return dfr, freq_correct
 
 
-if __name__ == "__main__":
-
-    if 0:
-        # Generate substitution matrices for evaluation
-        SM.generate_all_sub_mat()
-
-    # TheSession
-    if 0:
-        # Load thesession data
-        df, data = load_tunes.load_thesession_data()
-
-        # Run mmseqs with different substitution matrices and evaluate results
-        explore_parameter_space(df)
-
-
-    # Meertens
-    if 1:
-        # Load thesession data
-        df, data = load_tunes.load_meertens_data()
-
-        # Run mmseqs with different substitution matrices and evaluate results
-        explore_parameter_space(df, 'meertens')
-
-
-    # Bronson
-    if 1:
-        # Load thesession data
-        df = load_tunes.load_bronson_data()
-
-        # Run mmseqs with different substitution matrices and evaluate results
-        explore_parameter_space(df, 'bronson')
-
-    # Optimize alignment parameters for replicating Pat's manual alignments
-    if 0:
-        optimize_alignment_savage()
