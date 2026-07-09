@@ -99,6 +99,8 @@ inline_fields = {k:v for k,v in info_keys.items() if v.inline}
 # map natural note letters to chromatic values
 pitch_values = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11, }
 accidental_values = {'': 0, '#': 1, 'b': -1}
+# semitone offset of an accidental written on a note inside the tune body
+note_accidental_values = {'=': 0, '^': 1, '^^': 2, '_': -1, '__': -2}
 for n,v in list(pitch_values.items()):
     for a in '#b':
         pitch_values[n+a] = v + accidental_values[a]
@@ -131,11 +133,16 @@ class Key(object):
             self.mode = mode
 
     def parse_key(self, key):
+        key = key.strip()
         # highland pipe keys
         if key in ['HP', 'Hp']:
             return {'F': 1, 'C': 1, 'G': 0}
 
         m = re.match(r'([A-G])(\#|b)?\s*(\w+)?(.*)', key)
+        if m is None:
+            # retry allowing a lower-case tonic (e.g. "emin")
+            key = key[:1].upper() + key[1:]
+            m = re.match(r'([A-G])(\#|b)?\s*(\w+)?(.*)', key)
         if m is None:
             raise ValueError('Invalid key "%s"' % key)
         base, acc, mode, extra = m.groups()
@@ -210,15 +217,17 @@ class Pitch(object):
         if isinstance(value, Note):
             self._note = value
 
-            if (len(value.note) == 1) & (isinstance(value.accidental, type(None))):
-                acc = value.key.accidentals.get(value.note[0].upper(), '')
-                self._name = value.note.upper() + acc
-                self._value = self.pitch_value(self._name)
+            # A note's chromatic value is its natural pitch plus one accidental.
+            # An explicit accidental on the note (^ ^^ = _ __) takes priority;
+            # otherwise the key signature supplies the accidental for the letter.
+            letter = value.note.upper()
+            if value.accidental is None:
+                acc = value.key.accidentals.get(letter, '')       # '#', 'b' or ''
+                self._name = letter + acc
+                self._value = pitch_values[letter] + accidental_values[acc]
             else:
                 self._name = value.note.capitalize()
-                self._value = self.pitch_value(value.note,
-                                               key_accidentals=value.key.accidentals,
-                                               note_accidentals=value.accidental)
+                self._value = pitch_values[letter] + note_accidental_values[value.accidental]
 
             assert octave is None
             self._octave = value.octave
@@ -261,41 +270,14 @@ class Pitch(object):
         return self.value + self.octave * 12
 
     @staticmethod
-    def pitch_value(pitch, root='C', key_accidentals={}, note_accidentals=''):
+    def pitch_value(pitch, root='C'):
         """Convert a pitch string like "A#" to a chromatic scale value relative
         to root.
         """
         pitch = pitch.strip()
         val = pitch_values[pitch[0].upper()]
-
-        # This only adds the values of '#' or 'b' like in 'A#'.
-        # It does not apply accidentals that occur within a bar.
         for acc in pitch[1:]:
             val += accidental_values[acc]
-
-        # This applies accidentals that occur within a bar
-        if note_accidentals != '':
-            note_accidental_value = {'^': 1, '_': -1}
-            accidental_swap = {'#':'_', 'b':'^'}
-
-            # If the natural sign is there, find the key accidental
-            # correseponding to that note, and reverse it
-            if note_accidentals == '=':
-                # Sometimes a natural sign is used to cancel out a previous
-                # accidental within a bar. In this case, we don't need to
-                # add anything to the note value, so we set note_accidentals
-                # to an empty string
-                if pitch in key_accidentals:
-                    note_accidentals = accidental_swap[key_accidentals[pitch]]
-                else:
-                    note_accidentals = ""
-
-            # There can be more than one sharp '^' or flat '_',
-            # so count the number and apply the change to the pitch value
-            for acc in note_accidentals:
-                val += note_accidental_value[acc]
-
-
         if root == 'C':
             return val
         return (val - Pitch.pitch_value(root)) % 12
@@ -440,7 +422,9 @@ class Note(Token):
         n_dots = len(dots)
         num, den = self.length
         if longer:
-            num = num * 2 + 1
+            # a dot multiplies the duration by 3/2 (correct for any num;
+            # the old num*2+1 was only right when num == 1)
+            num = num * 3
             den = den * 2
             self._length = (num, den)
         else:
@@ -508,6 +492,24 @@ class Rest(Token):
         Token.__init__(self, **kwds)
         self.symbol = symbol
         self.length = (num, denom)
+
+    def dotify(self, dots, direction):
+        """Apply dot(s) to the duration of this rest.
+        """
+        assert direction in ('left', 'right')
+        longer = direction == 'left'
+        if '<' in dots:
+            longer = not longer
+        num, den = self.length
+        num = 1 if num is None else int(num)
+        den = 1 if den is None else int(den)
+        if longer:
+            # a dot multiplies the duration by 3/2 (see Note.dotify)
+            num = num * 3
+            den = den * 2
+        else:
+            den = den * 2
+        self.length = (num, den)
 
 
 class InfoContext(object):
@@ -676,7 +678,9 @@ class Tune(object):
                     continue
 
                 # Beam  |   :|   |:   ||   and Chord  [ABC]
-                m = re.match(r'([\[\]\|\:]+)([0-9\-,])?', part)
+                # (a '[' that starts an inline field like [M:6/8] is left for
+                # the field parser above, not swallowed into the barline run)
+                m = re.match(r'((?:[\]\|\:]|\[(?![A-Za-z]:))+)([0-9\-,])?', part)
                 if m is not None:
                     if m.group() in '[]':
                         tokens.append(ChordBracket(line=i, char=j, text=m.group()))
@@ -727,7 +731,7 @@ class Tune(object):
                     continue
 
                 # Embelishments
-                m = re.match(r'(\{\\?)|\}', part)
+                m = re.match(r'(\{[/\\]?)|\}', part)
                 if m is not None:
                     tokens.append(GracenoteBrace(line=i, char=j, text=m.group()))
                     j += m.end()
@@ -768,7 +772,7 @@ class Tune(object):
 
                 raise Exception("Unable to parse: %s\n%s" % (part, self.url))
 
-            if not isinstance(tokens[-1], Continuation):
+            if tokens and not isinstance(tokens[-1], Continuation):
                 tokens.append(Newline(line=i, char=j, text='\n'))
 
         return tokens
