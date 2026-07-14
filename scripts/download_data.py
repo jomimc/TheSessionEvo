@@ -16,12 +16,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# Filled in on release with the Zenodo record's per-file download URLs, e.g.:
-#   TIER1_URL = "https://zenodo.org/records/<id>/files/tier1_figuredata.zip"
-#   TIER2_URL = "https://zenodo.org/records/<id>/files/tier2_caches.zip"
-TIER1_URL = None
-TIER2_URL = None
-MANIFEST_URL = None  # "https://zenodo.org/records/<id>/files/MANIFEST.sha256"
+TIER1_URL = "https://zenodo.org/records/21356647/files/tier1_figuredata.zip"
+TIER2_URL = "https://zenodo.org/records/21356647/files/tier2_caches.zip"
+MANIFEST_URL = "https://zenodo.org/records/21356647/files/MANIFEST.sha256"
 
 TIERS = {
     "figures": [("tier1_figuredata.zip", lambda: TIER1_URL)],
