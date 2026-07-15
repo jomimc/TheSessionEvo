@@ -7,8 +7,9 @@ evolution of Irish folk melodies: melodies are encoded as one-dimensional sequen
 aligned with a custom rhythm-aware algorithm, enabling statistical analysis of evolutionary
 forces in musical transmission.
 
-📄 **For the motivation, methods, and findings, see the paper:** _[title / DOI — TODO]_.
+📄 **For the motivation, methods, and findings, see the paper:** [arxiv.org/abs/2607.12673](https://arxiv.org/abs/2607.12673).
 This README covers only how to install the code and reproduce the analyses and figures.
+Data can be found at [zenodo.org/records/21356647](https://zenodo.org/records/21356647).
 
 ## Requirements
 
